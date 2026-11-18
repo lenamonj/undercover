@@ -23,7 +23,20 @@ CREATE TABLE IF NOT EXISTS claims (
     paid_amount REAL,
     signed_off_by TEXT,
     thread_id TEXT,
-    running INTEGER NOT NULL DEFAULT 0
+    running INTEGER NOT NULL DEFAULT 0,
+    attempts INTEGER NOT NULL DEFAULT 0,
+    run_id INTEGER
+);
+CREATE TABLE IF NOT EXISTS runs (
+    run_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    cap INTEGER NOT NULL,
+    status TEXT NOT NULL DEFAULT 'running',
+    todos TEXT NOT NULL DEFAULT '[]',
+    summary TEXT,
+    error TEXT,
+    thread_id TEXT NOT NULL,
+    started_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+    finished_at TEXT
 );
 CREATE TABLE IF NOT EXISTS policies (policy_id TEXT PRIMARY KEY, data TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS customers (customer_id TEXT PRIMARY KEY, data TEXT NOT NULL);

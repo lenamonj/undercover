@@ -32,6 +32,23 @@ class SignOff(BaseModel):
     handler_id: str
 
 
+class Todo(BaseModel):
+    content: str = Field(min_length=1)
+    status: Literal["pending", "in_progress", "done", "left_for_handler"]
+
+
+class Todos(BaseModel):
+    todos: list[Todo]
+
+
+class RunRequest(BaseModel):
+    cap: int = Field(ge=1, description="The most claims this run may work")
+
+
+class Summary(BaseModel):
+    summary: str = Field(min_length=1)
+
+
 class Step(BaseModel):
     kind: Literal["tool_call", "tool_result", "read", "reply", "error"]
     detail: str
@@ -128,6 +145,28 @@ def list_claims() -> list[dict[str, Any]]:
                 }
             )
     return queue
+
+
+@app.get("/api/claims/waiting", operation_id="list_waiting_claims")
+def list_waiting_claims() -> list[dict[str, Any]]:
+    """List the claims waiting for the agent, with their failed attempts."""
+    with db.connect() as conn:
+        rows = conn.execute(
+            "SELECT * FROM claims WHERE status = 'waiting' ORDER BY claim_id"
+        ).fetchall()
+    waiting = []
+    for row in rows:
+        claim = json.loads(row["data"])
+        waiting.append(
+            {
+                "claim_id": row["claim_id"],
+                "claim_type": claim["claim_type"],
+                "summary": claim["summary"],
+                "amount_claimed": claim["amount_claimed"],
+                "attempts": row["attempts"],
+            }
+        )
+    return waiting
 
 
 @app.get("/api/claims/{claim_id}", operation_id="get_claim")
@@ -304,16 +343,19 @@ def list_steps(claim_id: str) -> list[dict[str, Any]]:
     return [dict(row) for row in rows]
 
 
-def start_claim(claim_id: str) -> bool:
-    """Move a waiting claim to in progress with fresh steps; False if not waiting."""
+def begin_claim(claim_id: str, run_id: int | None) -> bool:
+    """Move a waiting claim to in progress; False if it is not waiting.
+
+    Steps from an earlier run are cleared; a retry within the same run keeps them.
+    """
     with db.connect() as conn:
-        claim_row(conn, claim_id)
+        row = claim_row(conn, claim_id)
         started = conn.execute(
-            "UPDATE claims SET status = 'in_progress', running = 1, thread_id = ?"
-            " WHERE claim_id = ? AND status = 'waiting'",
-            (str(uuid.uuid4()), claim_id),
+            "UPDATE claims SET status = 'in_progress', running = 1, thread_id = ?,"
+            " run_id = ? WHERE claim_id = ? AND status = 'waiting'",
+            (str(uuid.uuid4()), run_id, claim_id),
         ).rowcount
-        if started:
+        if started and (run_id is None or row["run_id"] != run_id):
             conn.execute("DELETE FROM steps WHERE claim_id = ?", (claim_id,))
     return bool(started)
 
@@ -354,7 +396,7 @@ def work_claim(claim_id: str) -> None:
 
 def work_waiting_claims(claim_ids: list[str]) -> None:
     for claim_id in claim_ids:
-        if start_claim(claim_id):
+        if begin_claim(claim_id, None):
             work_claim(claim_id)
         else:
             with db.connect() as conn:
@@ -366,7 +408,7 @@ def work_waiting_claims(claim_ids: list[str]) -> None:
 @app.post("/api/claims/{claim_id}/run", operation_id="run_agent")
 def run_agent(claim_id: str, background_tasks: BackgroundTasks) -> dict[str, str]:
     """Start the UnderCover Agent on one waiting claim."""
-    if not start_claim(claim_id):
+    if not begin_claim(claim_id, None):
         raise conflict(f"Claim {claim_id} is not waiting")
     background_tasks.add_task(work_claim, claim_id)
     return {"claim_id": claim_id, "status": "in_progress"}
@@ -387,3 +429,120 @@ def work_queue(background_tasks: BackgroundTasks) -> dict[str, int]:
     claim_ids = [row["claim_id"] for row in rows]
     background_tasks.add_task(work_waiting_claims, claim_ids)
     return {"queued": len(claim_ids)}
+
+
+def run_row(conn: sqlite3.Connection, run_id: int) -> sqlite3.Row:
+    row = conn.execute("SELECT * FROM runs WHERE run_id = ?", (run_id,)).fetchone()
+    if row is None:
+        raise HTTPException(404, f"No run {run_id}")
+    return row
+
+
+def claims_started(conn: sqlite3.Connection, run_id: int) -> int:
+    return conn.execute(
+        "SELECT COUNT(*) FROM claims WHERE run_id = ?", (run_id,)
+    ).fetchone()[0]
+
+
+def run_view(conn: sqlite3.Connection, row: sqlite3.Row) -> dict[str, Any]:
+    return {
+        "run_id": row["run_id"],
+        "cap": row["cap"],
+        "status": row["status"],
+        "claims_started": claims_started(conn, row["run_id"]),
+        "todos": json.loads(row["todos"]),
+        "summary": row["summary"],
+        "error": row["error"],
+        "thread_id": row["thread_id"],
+        "started_at": row["started_at"],
+        "finished_at": row["finished_at"],
+    }
+
+
+def running_run(conn: sqlite3.Connection, run_id: int) -> sqlite3.Row:
+    """Return a run that is still going, or raise 409."""
+    row = run_row(conn, run_id)
+    if row["status"] != "running":
+        raise conflict(f"Run {run_id} is {row['status']}")
+    return row
+
+
+def create_run(cap: int) -> dict[str, Any]:
+    with db.connect() as conn:
+        busy = conn.execute(
+            "SELECT run_id FROM runs WHERE status = 'running'"
+        ).fetchone()
+        if busy:
+            raise conflict(f"Run {busy['run_id']} is still going")
+        cursor = conn.execute(
+            "INSERT INTO runs (cap, thread_id) VALUES (?, ?)", (cap, str(uuid.uuid4()))
+        )
+        return run_view(conn, run_row(conn, cursor.lastrowid or 0))
+
+
+@app.post("/api/runs", operation_id="start_run")
+def start_run(request: RunRequest) -> dict[str, Any]:
+    """Start a run of the agent on the queue, capped at a number of claims."""
+    return create_run(request.cap)
+
+
+@app.get("/api/runs/current", operation_id="get_current_run")
+def get_current_run() -> dict[str, Any] | None:
+    """Get the latest run with its to-do list, or nothing before the first run."""
+    with db.connect() as conn:
+        row = conn.execute("SELECT * FROM runs ORDER BY run_id DESC LIMIT 1").fetchone()
+        return None if row is None else run_view(conn, row)
+
+
+@app.put("/api/runs/{run_id}/todos", operation_id="write_todos")
+def write_todos(run_id: int, todos: Todos) -> dict[str, Any]:
+    """Replace the run's to-do list."""
+    with db.connect() as conn:
+        running_run(conn, run_id)
+        conn.execute(
+            "UPDATE runs SET todos = ? WHERE run_id = ?",
+            (json.dumps([todo.model_dump() for todo in todos.todos]), run_id),
+        )
+        return run_view(conn, run_row(conn, run_id))
+
+
+@app.post("/api/runs/{run_id}/claims/{claim_id}/start", operation_id="start_claim")
+def start_claim(run_id: int, claim_id: str) -> dict[str, Any]:
+    """Start work on a waiting claim in a run, within the run's cap."""
+    with db.connect() as conn:
+        run = running_run(conn, run_id)
+        row = claim_row(conn, claim_id)
+        if row["status"] != "waiting":
+            raise conflict(f"Claim {claim_id} is {row['status']}, not waiting")
+        if row["run_id"] != run_id and claims_started(conn, run_id) >= run["cap"]:
+            raise conflict(f"Run {run_id} has reached its cap of {run['cap']}")
+    begin_claim(claim_id, run_id)
+    with db.connect() as conn:
+        return claim_view(conn, claim_row(conn, claim_id))
+
+
+def missed_claims(conn: sqlite3.Connection, run: sqlite3.Row) -> list[str]:
+    """Waiting claims the run still owes: its own failures, then untried ones."""
+    rows = conn.execute(
+        "SELECT claim_id, run_id FROM claims WHERE status = 'waiting' ORDER BY claim_id"
+    ).fetchall()
+    retries = [r["claim_id"] for r in rows if r["run_id"] == run["run_id"]]
+    if claims_started(conn, run["run_id"]) >= run["cap"]:
+        return retries
+    return retries + [r["claim_id"] for r in rows if r["run_id"] != run["run_id"]]
+
+
+@app.post("/api/runs/{run_id}/finish", operation_id="finish_run")
+def finish_run(run_id: int, summary: Summary) -> dict[str, Any]:
+    """Finish a run with a summary; refused while claims within its cap are missed."""
+    with db.connect() as conn:
+        run = running_run(conn, run_id)
+        missed = missed_claims(conn, run)
+        if missed:
+            raise conflict(f"Claims still to work: {', '.join(missed)}")
+        conn.execute(
+            "UPDATE runs SET status = 'finished', summary = ?,"
+            " finished_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE run_id = ?",
+            (summary.summary, run_id),
+        )
+        return run_view(conn, run_row(conn, run_id))

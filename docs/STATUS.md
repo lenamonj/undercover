@@ -1,12 +1,13 @@
 # Status
 
-The claims pilot from `docs/PLAN.md` is built. The harness from `docs/PLAN_HARNESS.md` is in progress: phase 1 of 6 is done.
+The claims pilot from `docs/PLAN.md` is built. The harness from `docs/PLAN_HARNESS.md` is in progress: phases 1 and 2 of 6 are done.
 
 ## Built
 
 - `backend/`: FastAPI on SQLite. `backend/db.py` creates `backend/undercover.db` (or the file in `UNDERCOVER_DB`) and seeds it from `data/` the first time the backend starts.
   - Read: `list_claims`, `get_claim`, `get_policy`, `get_claim_history`, `list_sections`, `read_section`, `get_instructions`, `list_handlers`, `list_steps`. `backend/documents.py` splits the policy wording and the claims manual into numbered sections.
   - Write: `record_decision`, `pay_claim`, `sign_off_claim`, `add_step`.
+  - Runs (the queue agent is not wired in yet): `start_run` with a cap, `get_current_run`, `list_waiting_claims`, `write_todos`, `start_claim` (refused over the cap or for a claim that is not waiting) and `finish_run` (refused while the run owes a retry or an untried claim within its cap).
   - Runs: `run_agent` starts the agent on one waiting claim in a background task, and `work_queue` runs it on every waiting claim, one after another. A claim's `running` flag is set from the start (or queueing) to the end of its run. A run that fails or ends without a decision puts the claim back to `waiting` with an error step.
   - The sign-off rule: a payout over the $1,000 limit in `data/company.json` sets the claim to `awaiting_sign_off`, and `pay_claim` refuses it with 409 until a handler signs off, which makes the payment.
   - The agent's instructions are in `backend/instructions.md`.

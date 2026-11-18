@@ -81,13 +81,13 @@ Anything from later briefs: durable state, evaluations, parallel claim agents, a
 
 **Why now:** the rules the queue agent works under are built and tested on their own, before an agent exists to test them, as the sign-off rule was in the pilot.
 
-- [ ] `uv run pytest -q` passes, with tests for each rule below
-- [ ] With a cap of 5, `start_claim` succeeds for five different claims and returns 409 for a sixth; retrying a claim already started in the run does not count against the cap
-- [ ] `start_claim` on a claim that is not `waiting` returns 409, so a decided claim is never decided again
-- [ ] `write_todos` stores the list, rejects an unknown status with 422, and `get_current_run` returns it in order
-- [ ] `finish_run` returns 409 naming the missed claims while a waiting claim was never tried and the cap is not reached; it succeeds when the cap is reached or no such claim is left, and stores the summary
-- [ ] `start_run` returns 409 while another run is going
-- [ ] `list_waiting_claims` lists only `waiting` claims, with their attempts
+- [x] `uv run pytest -q` passes, with tests for each rule below
+- [x] With a cap of 5, `start_claim` succeeds for five different claims and returns 409 for a sixth; retrying a claim already started in the run does not count against the cap
+- [x] `start_claim` on a claim that is not `waiting` returns 409, so a decided claim is never decided again
+- [x] `write_todos` stores the list, rejects an unknown status with 422, and `get_current_run` returns it in order
+- [x] `finish_run` returns 409 naming the missed claims while a waiting claim was never tried and the cap is not reached; it succeeds when the cap is reached or no such claim is left, and stores the summary
+- [x] `start_run` returns 409 while another run is going
+- [x] `list_waiting_claims` lists only `waiting` claims, with their attempts
 
 ## Phase 3: Failures put right
 
