@@ -140,13 +140,13 @@ Brand: Instrument Sans, Instrument Serif and JetBrains Mono from Google Fonts; t
 
 **Why plain CSS and polling:** three pages do not justify a component library or a state library. Typed `fetch` helpers in one `api.ts` are enough.
 
-- [ ] `npm run check:ts` passes: Prettier, ESLint, `tsc` in strict mode with no `any`, and vitest at 80% coverage or more
-- [ ] Vitest covers the queue, the claim page in each of the four states, the sign-off form, the instructions page and money formatting, with `fetch` mocked
-- [ ] In the browser (Playwright MCP): the queue lists 25 claims and the four counts add up to 25
-- [ ] In the browser: opening CLM-1001 shows the story, three items, the documents, the Premium policy and the earlier claim CLM-0412
-- [ ] In the browser: the instructions page shows the instructions and has no way to edit them
-- [ ] In the browser: fonts and colors match `docs/BRAND.md` in light and dark mode, with no borders on one edge and no gradients
-- [ ] Screenshots of the three pages are checked for layout at 1280px and 390px wide
+- [x] `npm run check:ts` passes: Prettier, ESLint, `tsc` in strict mode with no `any`, and vitest at 80% coverage or more
+- [x] Vitest covers the queue, the claim page in each of the four states, the sign-off form, the instructions page and money formatting, with `fetch` mocked
+- [x] In the browser (Playwright MCP): the queue lists 25 claims and the four counts add up to 25
+- [x] In the browser: opening CLM-1001 shows the story, three items, the documents, the Premium policy and the earlier claim CLM-0412
+- [x] In the browser: the instructions page shows the instructions and has no way to edit them
+- [x] In the browser: fonts and colors match `docs/BRAND.md` in light and dark mode, with no borders on one edge and no gradients
+- [x] Screenshots of the three pages are checked for layout at 1280px and 390px wide
 
 ## Phase 6: End to end, a live run and the documents
 
