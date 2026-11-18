@@ -45,6 +45,7 @@ export const queueItem = (overrides: Partial<QueueItem> = {}): QueueItem => ({
   status: "waiting",
   decision: null,
   payout: null,
+  running: false,
   ...overrides,
 });
 
@@ -68,6 +69,7 @@ export const claim = (overrides: Partial<Claim> = {}): Claim => ({
   status: "waiting",
   decision: null,
   payout: null,
+  running: false,
   reason: null,
   policy_section: null,
   paid_amount: null,

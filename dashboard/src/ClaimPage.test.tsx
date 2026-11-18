@@ -33,7 +33,9 @@ it("polls the steps while the agent works", async () => {
   mockApi(
     claimRoutes(() => {
       polled += 1;
-      return claim({ status: polled < 2 ? "in_progress" : "decided" });
+      return polled < 2
+        ? claim({ status: "in_progress", running: true })
+        : claim({ status: "decided" });
     }, [step(), step({ step_id: 2, kind: "reply", detail: "Approved." })]),
   );
   renderAt("/claims/CLM-1001");

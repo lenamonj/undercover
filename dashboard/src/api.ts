@@ -12,6 +12,7 @@ export interface QueueItem {
   status: Status;
   decision: Verdict | null;
   payout: number | null;
+  running: boolean;
 }
 
 export interface ClaimItem {
@@ -42,6 +43,7 @@ export interface Claim {
   status: Status;
   decision: Verdict | null;
   payout: number | null;
+  running: boolean;
   reason: string | null;
   policy_section: string | null;
   paid_amount: number | null;

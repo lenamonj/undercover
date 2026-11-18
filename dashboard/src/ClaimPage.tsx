@@ -72,7 +72,7 @@ export function ClaimPage() {
       });
   }, [policyId, customerId]);
 
-  const working = claim?.status === "in_progress";
+  const working = claim?.running ?? false;
   useEffect(() => {
     if (!working) return;
     const timer = setInterval(() => {
@@ -95,7 +95,7 @@ export function ClaimPage() {
         </h1>
         <StatusBadge status={claim.status} />
       </div>
-      {claim.status === "waiting" && (
+      {claim.status === "waiting" && !claim.running && (
         <button
           type="button"
           onClick={() => {

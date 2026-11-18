@@ -22,8 +22,8 @@ STEP_DETAIL_LIMIT = 600
 
 
 def backend() -> httpx.Client:
-    """Return a client for the UnderCover backend."""
-    return httpx.Client(base_url=BACKEND_URL, timeout=30)
+    """Return a client for the backend at UNDERCOVER_URL, or on port 8000."""
+    return httpx.Client(base_url=os.getenv("UNDERCOVER_URL", BACKEND_URL), timeout=30)
 
 
 def call(method: str, path: str, body: dict[str, Any] | None = None) -> str:

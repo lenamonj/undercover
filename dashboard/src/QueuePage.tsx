@@ -27,7 +27,7 @@ export function QueuePage() {
     refresh();
   }, [refresh]);
 
-  const busy = queue?.some((claim) => claim.status === "in_progress") ?? false;
+  const busy = queue?.some((claim) => claim.running) ?? false;
   useEffect(() => {
     if (!busy) return;
     const timer = setInterval(refresh, 1000);

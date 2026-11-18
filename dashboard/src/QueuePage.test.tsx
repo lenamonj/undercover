@@ -39,7 +39,11 @@ it("works the queue and polls while claims are in progress", async () => {
       polled += 1;
       return polled === 1
         ? queue
-        : [queueItem({ status: polled === 2 ? "in_progress" : "decided" })];
+        : [
+            polled === 2
+              ? queueItem({ status: "in_progress", running: true })
+              : queueItem({ status: "decided" }),
+          ];
     },
     "POST /api/queue/run": { queued: 1 },
   });

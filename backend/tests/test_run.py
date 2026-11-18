@@ -4,7 +4,8 @@ from langchain_core.messages import AIMessage
 
 from agent import main as agent
 from agent.tests.stub import call, decision, stub
-from backend.main import app
+from backend import db
+from backend.main import app, work_waiting_claims
 
 
 @pytest.fixture(autouse=True)
@@ -82,3 +83,23 @@ def test_work_queue_leaves_nothing_waiting(client, monkeypatch):
 
 def test_unknown_claim(client):
     assert client.post("/api/claims/CLM-0000/run").status_code == 404
+
+
+def test_running_flag_clears_when_runs_end(client, monkeypatch):
+    use_model(monkeypatch, lambda: stub(AIMessage(content="Thinking.")))
+    client.post("/api/claims/CLM-1001/run")
+    assert client.get("/api/claims/CLM-1001").json()["running"] is False
+    client.post("/api/queue/run")
+    assert not any(c["running"] for c in client.get("/api/claims").json())
+
+
+def test_queued_claim_started_elsewhere_is_skipped(client):
+    with db.connect() as conn:
+        conn.execute(
+            "UPDATE claims SET status = 'decided', running = 1"
+            " WHERE claim_id = 'CLM-1001'"
+        )
+    work_waiting_claims(["CLM-1001"])
+    claim = client.get("/api/claims/CLM-1001").json()
+    assert claim["status"] == "decided"
+    assert claim["running"] is False

@@ -90,6 +90,7 @@ def claim_view(conn: sqlite3.Connection, row: sqlite3.Row) -> dict[str, Any]:
         "status": row["status"],
         "decision": row["decision"],
         "payout": row["payout"],
+        "running": bool(row["running"]),
         "reason": row["reason"],
         "policy_section": row["policy_section"],
         "paid_amount": row["paid_amount"],
@@ -123,6 +124,7 @@ def list_claims() -> list[dict[str, Any]]:
                     "status": row["status"],
                     "decision": row["decision"],
                     "payout": row["payout"],
+                    "running": bool(row["running"]),
                 }
             )
     return queue
@@ -287,7 +289,7 @@ def start_claim(claim_id: str) -> bool:
     with db.connect() as conn:
         claim_row(conn, claim_id)
         started = conn.execute(
-            "UPDATE claims SET status = 'in_progress', thread_id = ?"
+            "UPDATE claims SET status = 'in_progress', running = 1, thread_id = ?"
             " WHERE claim_id = ? AND status = 'waiting'",
             (str(uuid.uuid4()), claim_id),
         ).rowcount
@@ -304,7 +306,7 @@ def return_to_queue(claim_id: str, message: str) -> None:
         )
 
 
-def work_claim(claim_id: str) -> None:
+def run_and_check(claim_id: str) -> None:
     """Run the agent on a claim, and put it back in the queue if it fails."""
     with db.connect() as conn:
         thread_id = claim_row(conn, claim_id)["thread_id"]
@@ -319,10 +321,26 @@ def work_claim(claim_id: str) -> None:
         return_to_queue(claim_id, "The agent ended without recording a decision.")
 
 
+def work_claim(claim_id: str) -> None:
+    """Run the agent on a claim; the claim is running until the run ends."""
+    try:
+        run_and_check(claim_id)
+    finally:
+        with db.connect() as conn:
+            conn.execute(
+                "UPDATE claims SET running = 0 WHERE claim_id = ?", (claim_id,)
+            )
+
+
 def work_waiting_claims(claim_ids: list[str]) -> None:
     for claim_id in claim_ids:
         if start_claim(claim_id):
             work_claim(claim_id)
+        else:
+            with db.connect() as conn:
+                conn.execute(
+                    "UPDATE claims SET running = 0 WHERE claim_id = ?", (claim_id,)
+                )
 
 
 @app.post("/api/claims/{claim_id}/run", operation_id="run_agent")
@@ -339,8 +357,13 @@ def work_queue(background_tasks: BackgroundTasks) -> dict[str, int]:
     """Run the UnderCover Agent on every waiting claim, one after another."""
     with db.connect() as conn:
         rows = conn.execute(
-            "SELECT claim_id FROM claims WHERE status = 'waiting' ORDER BY claim_id"
+            "SELECT claim_id FROM claims WHERE status = 'waiting' AND running = 0"
+            " ORDER BY claim_id"
         ).fetchall()
+        conn.executemany(
+            "UPDATE claims SET running = 1 WHERE claim_id = ?",
+            [(row["claim_id"],) for row in rows],
+        )
     claim_ids = [row["claim_id"] for row in rows]
     background_tasks.add_task(work_waiting_claims, claim_ids)
     return {"queued": len(claim_ids)}
