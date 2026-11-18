@@ -106,13 +106,13 @@ Rules the backend enforces, each returning 409 with a plain message when broken 
 
 **Why this shape:** six small tools keep each step visible on the dashboard and let a small model work one fact at a time. The instructions sit in the backend so the dashboard can show exactly what the agent was told.
 
-- [ ] `uv run pytest -q agent` passes with a stub model and the backend's test client in place of HTTP
-- [ ] A stubbed run that approves $420.00 leaves the claim `decided` and paid, with steps recorded in order
-- [ ] A stubbed run that approves $1,500.00 and then tries to pay leaves the claim `awaiting_sign_off` with no payment, and the refusal appears as a step
-- [ ] A stubbed run that declines records a payout of zero and makes no payment
-- [ ] The system prompt used in a run equals the text from `get_instructions`
-- [ ] `MODEL_NAME` still overrides the default model, and the default is `openai/gpt-6-luna` with low reasoning effort
-- [ ] Nothing in `agent/` opens a file under `data/` or imports `backend.db`
+- [x] `uv run pytest -q agent` passes with a stub model and the backend's test client in place of HTTP
+- [x] A stubbed run that approves $420.00 leaves the claim `decided` and paid, with steps recorded in order
+- [x] A stubbed run that approves $1,500.00 and then tries to pay leaves the claim `awaiting_sign_off` with no payment, and the refusal appears as a step
+- [x] A stubbed run that declines records a payout of zero and makes no payment
+- [x] The system prompt used in a run equals the text from `get_instructions`
+- [x] `MODEL_NAME` still overrides the default model, and the default is `openai/gpt-6-luna` with low reasoning effort
+- [x] Nothing in `agent/` opens a file under `data/` or imports `backend.db`
 
 ## Phase 4: Running the agent from the backend
 

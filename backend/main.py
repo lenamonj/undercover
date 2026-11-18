@@ -30,6 +30,11 @@ class SignOff(BaseModel):
     handler_id: str
 
 
+class Step(BaseModel):
+    kind: Literal["tool_call", "tool_result", "reply", "error"]
+    detail: str
+
+
 def approval_limit() -> float:
     """Return the payout above which a handler must sign off."""
     return db.load("company.json")["payout_approval_limit"]
@@ -244,3 +249,32 @@ def sign_off_claim(claim_id: str, sign_off: SignOff) -> dict[str, Any]:
             (sign_off.handler_id, claim_id),
         )
         return claim_view(conn, claim_row(conn, claim_id))
+
+
+def add_step_row(conn: sqlite3.Connection, claim_id: str, step: Step) -> None:
+    conn.execute(
+        "INSERT INTO steps (claim_id, kind, detail) VALUES (?, ?, ?)",
+        (claim_id, step.kind, step.detail),
+    )
+
+
+@app.post("/api/claims/{claim_id}/steps", operation_id="add_step")
+def add_step(claim_id: str, step: Step) -> dict[str, str]:
+    """Record one step the agent took on a claim."""
+    with db.connect() as conn:
+        claim_row(conn, claim_id)
+        add_step_row(conn, claim_id, step)
+    return {"status": "recorded"}
+
+
+@app.get("/api/claims/{claim_id}/steps", operation_id="list_steps")
+def list_steps(claim_id: str) -> list[dict[str, Any]]:
+    """List the steps the agent took on a claim, in order."""
+    with db.connect() as conn:
+        claim_row(conn, claim_id)
+        rows = conn.execute(
+            "SELECT step_id, kind, detail, created_at FROM steps"
+            " WHERE claim_id = ? ORDER BY step_id",
+            (claim_id,),
+        ).fetchall()
+    return [dict(row) for row in rows]
