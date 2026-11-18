@@ -136,10 +136,10 @@ Anything from later briefs: durable state, evaluations, parallel claim agents, a
 
 **Builds:** the scripted model in `e2e/server.py` grows a queue-agent script beside the claim-agent script, and Playwright tests cover a capped run. Then one live run on the default model, capped at five, after a reseed. `docs/SPEC.md` (the manual is no longer "Not for now"; the new state), `docs/TECH_STACK.md` (two entry points, the default model, the middleware) and `docs/STATUS.md` are brought up to date.
 
-- [ ] Playwright: a run capped at 3 fills in the to-do list, ticks items off, shows the summary, and leaves 22 claims waiting
-- [ ] Playwright: a claim worked in the run shows its steps, its "Sections read" and its decision
-- [ ] Playwright: the instructions page shows both sets of instructions
-- [ ] Live, after `npm run reset`, a run capped at five on `deepseek/deepseek-v4.1-flash` works five claims on its own, with the to-do list filling in and being ticked off on the dashboard, each claim's steps and sections read visible, and the other 20 claims still waiting. The results go in `docs/STATUS.md`, not checked against `data/evals/`
-- [ ] `npm run check` passes in full, and the output is reported
-- [ ] `docs/SPEC.md`, `docs/TECH_STACK.md` and `docs/STATUS.md` describe the product as it now is
-- [ ] Every phase is committed, nothing is pushed
+- [x] Playwright: a run capped at 3 fills in the to-do list, ticks items off, shows the summary, and leaves 22 claims waiting
+- [x] Playwright: a claim worked in the run shows its steps, its "Sections read" and its decision
+- [x] Playwright: the instructions page shows both sets of instructions
+- [x] Live, after `npm run reset`, a run capped at five on `deepseek/deepseek-v4.1-flash` works five claims on its own, with the to-do list filling in and being ticked off on the dashboard, each claim's steps and sections read visible, and the other 20 claims still waiting. The results go in `docs/STATUS.md`, not checked against `data/evals/`
+- [x] `npm run check` passes in full, and the output is reported
+- [x] `docs/SPEC.md`, `docs/TECH_STACK.md` and `docs/STATUS.md` describe the product as it now is
+- [x] Every phase is committed, nothing is pushed
