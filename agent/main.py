@@ -7,6 +7,12 @@ from typing import Any, Literal
 import httpx
 from dotenv import load_dotenv
 from langchain.agents import create_agent
+from langchain.agents.middleware import (
+    AgentMiddleware,
+    ModelCallLimitMiddleware,
+    ModelRetryMiddleware,
+    ToolRetryMiddleware,
+)
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage, BaseMessage, ToolMessage
 from langchain_core.tools import tool
@@ -19,6 +25,8 @@ BACKEND_URL = "http://localhost:8000"
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 DEFAULT_MODEL = "deepseek/deepseek-v4.1-flash"
 STEP_DETAIL_LIMIT = 600
+MODEL_TIMEOUT_SECONDS = 60
+CLAIM_MODEL_CALL_LIMIT = 30
 
 
 def backend() -> httpx.Client:
@@ -93,6 +101,15 @@ def pay_claim(claim_id: str, amount: float) -> str:
     return call("POST", f"/api/claims/{claim_id}/payment", {"amount": amount})
 
 
+def claim_middleware() -> list[AgentMiddleware[Any, Any, Any]]:
+    """Retry provider errors and timed-out tool calls, and stop a looping agent."""
+    return [
+        ModelRetryMiddleware(max_retries=2),
+        ToolRetryMiddleware(max_retries=2, retry_on=(httpx.TimeoutException,)),
+        ModelCallLimitMiddleware(run_limit=CLAIM_MODEL_CALL_LIMIT),
+    ]
+
+
 TOOLS = [
     get_claim,
     get_policy,
@@ -112,6 +129,7 @@ def model() -> ChatOpenAI:
         base_url=OPENROUTER_BASE_URL,
         api_key=SecretStr(os.environ["OPENROUTER_API_KEY"]),
         reasoning_effort=None if name else "low",
+        timeout=MODEL_TIMEOUT_SECONDS,
     )
 
 
@@ -152,7 +170,12 @@ def record_steps(claim_id: str, message: BaseMessage) -> None:
 
 def run(claim_id: str, thread_id: str, llm: BaseChatModel | None = None) -> str:
     """Run the agent on one claim, recording each step, and return its final reply."""
-    agent = create_agent(llm or model(), tools=TOOLS, system_prompt=instructions())
+    agent = create_agent(
+        llm or model(),
+        tools=TOOLS,
+        system_prompt=instructions(),
+        middleware=claim_middleware(),
+    )
     reply = ""
     for update in agent.stream(
         {"messages": [{"role": "user", "content": f"Decide claim {claim_id}."}]},
@@ -160,8 +183,50 @@ def run(claim_id: str, thread_id: str, llm: BaseChatModel | None = None) -> str:
         stream_mode="updates",
     ):
         for node in update.values():
-            for message in node["messages"]:
+            if not node:  # middleware nodes can report no update
+                continue
+            for message in node.get("messages", []):
                 record_steps(claim_id, message)
                 if isinstance(message, AIMessage) and not message.tool_calls:
                     reply = message.text
     return reply
+
+
+def report(claim: dict[str, Any]) -> str:
+    """Sum up a decided claim in one line."""
+    line = f"{claim['claim_id']}: {claim['decision']}"
+    if claim["decision"] != "approve":
+        return line
+    line += f", ${claim['payout']:,.2f}"
+    if claim["paid_amount"] is not None:
+        return line + ", paid"
+    if claim["status"] == "awaiting_sign_off":
+        return line + ", payment waits for a handler's sign-off"
+    return line + ", not paid"
+
+
+def fail(claim_id: str, error: str) -> str:
+    """Record a failed attempt and say where the claim went."""
+    claim = json.loads(
+        call("POST", f"/api/claims/{claim_id}/failure", {"error": error})
+    )
+    where = (
+        "left for a handler"
+        if claim["status"] == "needs_handler"
+        else "back in the queue"
+    )
+    return f"{claim_id}: failed ({error}); {where}"
+
+
+def work_claim(claim_id: str, llm: BaseChatModel | None = None) -> str:
+    """Run a fresh claim agent on a started claim and report back in one line."""
+    claim = json.loads(call("GET", f"/api/claims/{claim_id}"))
+    try:
+        run(claim_id, claim["thread_id"], llm)
+    except Exception as error:  # noqa: BLE001
+        return fail(claim_id, f"The agent failed: {error}")
+    claim = json.loads(call("GET", f"/api/claims/{claim_id}"))
+    if claim["status"] == "in_progress":
+        return fail(claim_id, "The agent ended without recording a decision.")
+    call("POST", f"/api/claims/{claim_id}/release")
+    return report(claim)

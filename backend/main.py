@@ -15,6 +15,7 @@ from agent import main as undercover_agent
 from backend import db, documents
 
 INSTRUCTIONS = Path(__file__).parent / "instructions.md"
+MAX_ATTEMPTS = 2
 
 
 class Decision(BaseModel):
@@ -49,6 +50,10 @@ class Summary(BaseModel):
     summary: str = Field(min_length=1)
 
 
+class Failure(BaseModel):
+    error: str = Field(min_length=1)
+
+
 class Step(BaseModel):
     kind: Literal["tool_call", "tool_result", "read", "reply", "error"]
     detail: str
@@ -66,6 +71,7 @@ def conflict(message: str) -> HTTPException:
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     db.init_db()
+    recover()
     yield
 
 
@@ -108,6 +114,8 @@ def claim_view(conn: sqlite3.Connection, row: sqlite3.Row) -> dict[str, Any]:
         "decision": row["decision"],
         "payout": row["payout"],
         "running": bool(row["running"]),
+        "attempts": row["attempts"],
+        "thread_id": row["thread_id"],
         "reason": row["reason"],
         "policy_section": row["policy_section"],
         "paid_amount": row["paid_amount"],
@@ -360,44 +368,10 @@ def begin_claim(claim_id: str, run_id: int | None) -> bool:
     return bool(started)
 
 
-def return_to_queue(claim_id: str, message: str) -> None:
-    with db.connect() as conn:
-        add_step_row(conn, claim_id, Step(kind="error", detail=message))
-        conn.execute(
-            "UPDATE claims SET status = 'waiting' WHERE claim_id = ?", (claim_id,)
-        )
-
-
-def run_and_check(claim_id: str) -> None:
-    """Run the agent on a claim, and put it back in the queue if it fails."""
-    with db.connect() as conn:
-        thread_id = claim_row(conn, claim_id)["thread_id"]
-    try:
-        undercover_agent.run(claim_id, thread_id)
-    except Exception as error:  # noqa: BLE001
-        return_to_queue(claim_id, f"The agent failed: {error}")
-        return
-    with db.connect() as conn:
-        still_in_progress = claim_row(conn, claim_id)["status"] == "in_progress"
-    if still_in_progress:
-        return_to_queue(claim_id, "The agent ended without recording a decision.")
-
-
-def work_claim(claim_id: str) -> None:
-    """Run the agent on a claim; the claim is running until the run ends."""
-    try:
-        run_and_check(claim_id)
-    finally:
-        with db.connect() as conn:
-            conn.execute(
-                "UPDATE claims SET running = 0 WHERE claim_id = ?", (claim_id,)
-            )
-
-
 def work_waiting_claims(claim_ids: list[str]) -> None:
     for claim_id in claim_ids:
         if begin_claim(claim_id, None):
-            work_claim(claim_id)
+            undercover_agent.work_claim(claim_id)
         else:
             with db.connect() as conn:
                 conn.execute(
@@ -410,7 +384,7 @@ def run_agent(claim_id: str, background_tasks: BackgroundTasks) -> dict[str, str
     """Start the UnderCover Agent on one waiting claim."""
     if not begin_claim(claim_id, None):
         raise conflict(f"Claim {claim_id} is not waiting")
-    background_tasks.add_task(work_claim, claim_id)
+    background_tasks.add_task(undercover_agent.work_claim, claim_id)
     return {"claim_id": claim_id, "status": "in_progress"}
 
 
@@ -546,3 +520,49 @@ def finish_run(run_id: int, summary: Summary) -> dict[str, Any]:
             (summary.summary, run_id),
         )
         return run_view(conn, run_row(conn, run_id))
+
+
+def fail_claim(conn: sqlite3.Connection, claim_id: str, error: str) -> None:
+    """Count a failed attempt: back to the queue, or to a handler the second time."""
+    add_step_row(conn, claim_id, Step(kind="error", detail=error))
+    conn.execute(
+        "UPDATE claims SET attempts = attempts + 1, running = 0,"
+        " status = CASE WHEN attempts + 1 >= ? THEN 'needs_handler' ELSE 'waiting' END"
+        " WHERE claim_id = ?",
+        (MAX_ATTEMPTS, claim_id),
+    )
+
+
+@app.post("/api/claims/{claim_id}/failure", operation_id="record_failure")
+def record_failure(claim_id: str, failure: Failure) -> dict[str, Any]:
+    """Record that the agent failed on a claim before deciding it."""
+    with db.connect() as conn:
+        if claim_row(conn, claim_id)["status"] != "in_progress":
+            raise conflict(f"Claim {claim_id} is not in progress")
+        fail_claim(conn, claim_id, failure.error)
+        return claim_view(conn, claim_row(conn, claim_id))
+
+
+@app.post("/api/claims/{claim_id}/release", operation_id="release_claim")
+def release_claim(claim_id: str) -> dict[str, Any]:
+    """Mark the agent's work on a claim as over."""
+    with db.connect() as conn:
+        claim_row(conn, claim_id)
+        conn.execute("UPDATE claims SET running = 0 WHERE claim_id = ?", (claim_id,))
+        return claim_view(conn, claim_row(conn, claim_id))
+
+
+def recover() -> None:
+    """Put right what an interrupted backend left: claims in progress and runs."""
+    with db.connect() as conn:
+        rows = conn.execute(
+            "SELECT claim_id FROM claims WHERE status = 'in_progress'"
+        ).fetchall()
+        for row in rows:
+            fail_claim(conn, row["claim_id"], "The run was interrupted.")
+        conn.execute("UPDATE claims SET running = 0")
+        conn.execute(
+            "UPDATE runs SET status = 'interrupted',"
+            " finished_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')"
+            " WHERE status = 'running'"
+        )

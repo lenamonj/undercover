@@ -1,16 +1,15 @@
 import pytest
-from fastapi.testclient import TestClient
 from langchain_core.messages import AIMessage
 
 from agent import main as agent
-from agent.tests.stub import call, decision, stub
+from agent.tests.stub import Backend, call, decision, stub
 from backend import db
 from backend.main import app, work_waiting_claims
 
 
 @pytest.fixture(autouse=True)
 def backend(client, monkeypatch):
-    monkeypatch.setattr(agent, "backend", lambda: TestClient(app))
+    monkeypatch.setattr(agent, "backend", lambda: Backend(app))
 
 
 def use_model(monkeypatch, make):

@@ -1,18 +1,17 @@
 from pathlib import Path
 
 import pytest
-from fastapi.testclient import TestClient
 from langchain_core.messages import AIMessage
 
 from agent import main
-from agent.tests.stub import call, decision, stub
+from agent.tests.stub import Backend, call, decision, stub
 from backend import db
 from backend.main import app
 
 
 @pytest.fixture(autouse=True)
 def backend(client, monkeypatch):
-    monkeypatch.setattr(main, "backend", lambda: TestClient(app))
+    monkeypatch.setattr(main, "backend", lambda: Backend(app))
 
 
 def start(claim_id: str) -> None:

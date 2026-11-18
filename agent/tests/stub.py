@@ -1,3 +1,4 @@
+from fastapi.testclient import TestClient
 from langchain_core.language_models.fake_chat_models import GenericFakeChatModel
 from langchain_core.messages import AIMessage, BaseMessage
 
@@ -32,3 +33,13 @@ def decision(claim_id: str, verdict: str, payout: float) -> AIMessage:
         reason="Covered by the wording.",
         policy_section="3. Trip Delay",
     )
+
+
+class Backend(TestClient):
+    """The backend's test client, without re-running its startup on every call."""
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args):
+        self.close()

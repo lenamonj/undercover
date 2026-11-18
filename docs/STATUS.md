@@ -1,6 +1,6 @@
 # Status
 
-The claims pilot from `docs/PLAN.md` is built. The harness from `docs/PLAN_HARNESS.md` is in progress: phases 1 and 2 of 6 are done.
+The claims pilot from `docs/PLAN.md` is built. The harness from `docs/PLAN_HARNESS.md` is in progress: phases 1 to 3 of 6 are done.
 
 ## Built
 
@@ -9,9 +9,10 @@ The claims pilot from `docs/PLAN.md` is built. The harness from `docs/PLAN_HARNE
   - Write: `record_decision`, `pay_claim`, `sign_off_claim`, `add_step`.
   - Runs (the queue agent is not wired in yet): `start_run` with a cap, `get_current_run`, `list_waiting_claims`, `write_todos`, `start_claim` (refused over the cap or for a claim that is not waiting) and `finish_run` (refused while the run owes a retry or an untried claim within its cap).
   - Runs: `run_agent` starts the agent on one waiting claim in a background task, and `work_queue` runs it on every waiting claim, one after another. A claim's `running` flag is set from the start (or queueing) to the end of its run. A run that fails or ends without a decision puts the claim back to `waiting` with an error step.
+  - Failures: `record_failure` sends a claim back to `waiting`, or to `needs_handler` on its second failure. `release_claim` marks a claim agent's work as over. At startup the backend records a failed attempt on any claim left `in_progress` and marks a run left going `interrupted`.
   - The sign-off rule: a payout over the $1,000 limit in `data/company.json` sets the claim to `awaiting_sign_off`, and `pay_claim` refuses it with 409 until a handler signs off, which makes the payment.
   - The agent's instructions are in `backend/instructions.md`.
-- `agent/`: the UnderCover Agent, `run(claim_id, thread_id)`. LangChain's `create_agent` on OpenRouter with six tools that call the backend's API: `get_claim`, `get_policy`, `get_claim_history`, `list_sections`, `read_section`, `record_decision` and `pay_claim`. Each section read is recorded as a `read` step. It fetches its instructions from `get_instructions` and posts each tool call, tool result and reply as a step. A refused call comes back to the model as text. It reaches the backend at `UNDERCOVER_URL`, or `http://localhost:8000`.
+- `agent/`: the UnderCover Agent, `run(claim_id, thread_id)`. LangChain's `create_agent` on OpenRouter with six tools that call the backend's API: `get_claim`, `get_policy`, `get_claim_history`, `list_sections`, `read_section`, `record_decision` and `pay_claim`. Each section read is recorded as a `read` step. It fetches its instructions from `get_instructions` and posts each tool call, tool result and reply as a step. A refused call comes back to the model as text. `work_claim(claim_id)` runs a fresh claim agent on a started claim, records a failure if it raises or ends without a decision, and returns a one-line report. Middleware retries provider errors and timed-out tool calls and stops an agent after 30 model calls; the model times out after 60 seconds. It reaches the backend at `UNDERCOVER_URL`, or `http://localhost:8000`.
 - `dashboard/`: React, React Router and plain CSS in the brand's fonts and colors, light and dark. The queue with a count for each state and "Work the queue". Each claim in full, with its policy, claim history, the agent's decision and reasons, the agent's steps (polled every second while it runs), "Run the agent" and the sign-off form. The agent's instructions, read only.
 - `e2e/`: Playwright tests against `e2e/server.py`, a backend on port 8001 with a fresh database and a scripted model, and a dashboard on port 5174.
 

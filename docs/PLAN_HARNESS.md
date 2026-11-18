@@ -49,6 +49,7 @@ Every operation keeps an `operation_id`, a one-line docstring and no optional in
 | `write_todos` | `PUT /api/runs/{run_id}/todos` | The whole list |
 | `start_claim` | `POST /api/runs/{run_id}/claims/{claim_id}/start` | 409 over the cap or if the claim is not waiting |
 | `record_failure` | `POST /api/claims/{claim_id}/failure` | `error`. Back to `waiting`, or `needs_handler` on the second failure |
+| `release_claim` | `POST /api/claims/{claim_id}/release` | Marks a claim agent's work as over, so the dashboard stops refreshing it. Added in Phase 3: the wrapper reaches the backend only over HTTP |
 | `finish_run` | `POST /api/runs/{run_id}/finish` | `summary`. 409 listing the claims missed, if any waiting claim was never tried and the cap is not reached |
 | `get_instructions` | `GET /api/instructions` | Now returns `queue` and `claim` |
 | `run_agent` | `POST /api/claims/{claim_id}/run` | Unchanged for the dashboard: one named claim, through the same claim agent and failure handling |
@@ -95,14 +96,14 @@ Anything from later briefs: durable state, evaluations, parallel claim agents, a
 
 **Why before the queue agent:** the queue agent's `work_claim` tool is this function, so it needs to be right first.
 
-- [ ] `uv run pytest -q` passes at 80% coverage or more
-- [ ] A stubbed claim agent that raises: the claim goes back to `waiting` with `attempts` 1, an error step, and the one-line report says so
-- [ ] A second failure on the same claim sets it to `needs_handler`, and `start_claim` then refuses it
-- [ ] A stubbed claim agent that ends without a decision is recorded as a failure
-- [ ] A model error on the first call and success on the second: the claim is decided, with no failure recorded (`ModelRetryMiddleware`)
-- [ ] A claim agent that keeps calling tools stops at the model call limit and is recorded as a failure
-- [ ] Starting the backend with a claim `in_progress` records a failed attempt on it and marks the old run `interrupted`
-- [ ] A successful report reads like `CLM-1001: approve, $420.00, paid`, and an over-limit one says the payment waits for sign-off
+- [x] `uv run pytest -q` passes at 80% coverage or more
+- [x] A stubbed claim agent that raises: the claim goes back to `waiting` with `attempts` 1, an error step, and the one-line report says so
+- [x] A second failure on the same claim sets it to `needs_handler`, and `start_claim` then refuses it
+- [x] A stubbed claim agent that ends without a decision is recorded as a failure
+- [x] A model error on the first call and success on the second: the claim is decided, with no failure recorded (`ModelRetryMiddleware`)
+- [x] A claim agent that keeps calling tools stops at the model call limit and is recorded as a failure
+- [x] Starting the backend with a claim `in_progress` records a failed attempt on it and marks the old run `interrupted`
+- [x] A successful report reads like `CLM-1001: approve, $420.00, paid`, and an over-limit one says the payment waits for sign-off
 
 ## Phase 4: The queue agent
 
