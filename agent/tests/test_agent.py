@@ -89,7 +89,7 @@ def test_system_prompt_comes_from_backend(client):
     main.run("CLM-1001", "thread-4", model)
     system = model.seen[0][0]
     assert system.type == "system"
-    assert system.content == client.get("/api/instructions").json()["instructions"]
+    assert system.content == client.get("/api/instructions").json()["claim"]
 
 
 def test_sections_read_are_recorded(client):

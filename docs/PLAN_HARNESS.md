@@ -51,6 +51,7 @@ Every operation keeps an `operation_id`, a one-line docstring and no optional in
 | `record_failure` | `POST /api/claims/{claim_id}/failure` | `error`. Back to `waiting`, or `needs_handler` on the second failure |
 | `release_claim` | `POST /api/claims/{claim_id}/release` | Marks a claim agent's work as over, so the dashboard stops refreshing it. Added in Phase 3: the wrapper reaches the backend only over HTTP |
 | `finish_run` | `POST /api/runs/{run_id}/finish` | `summary`. 409 listing the claims missed, if any waiting claim was never tried and the cap is not reached |
+| `fail_run` | `POST /api/runs/{run_id}/failure` | `error`. Marks a run `failed` when the queue agent raises or stops without finishing. Added in Phase 4 |
 | `get_instructions` | `GET /api/instructions` | Now returns `queue` and `claim` |
 | `run_agent` | `POST /api/claims/{claim_id}/run` | Unchanged for the dashboard: one named claim, through the same claim agent and failure handling |
 | `work_queue` | `POST /api/queue/run` | Removed; `start_run` replaces it |
@@ -111,14 +112,14 @@ Anything from later briefs: durable state, evaluations, parallel claim agents, a
 
 **Why the tools look like this:** four tools are the whole job of the queue agent, and each is a thin call to the backend except `work_claim`, which is Phase 3's function.
 
-- [ ] `uv run pytest -q` passes, with a stub model for the queue agent and another for the claim agents
-- [ ] A stubbed run capped at 2 works two claims, writes and updates the to-do list, finishes with a summary, and leaves 23 claims `waiting`
-- [ ] A stubbed run where one claim agent fails: the run carries on, the queue agent retries the claim and it is decided
-- [ ] A stubbed run where a claim fails twice: it ends `needs_handler` and its to-do item `left_for_handler`, and the run finishes
-- [ ] A stubbed queue agent that tries to finish early gets the 409 listing the missed claims, works them, then finishes
-- [ ] Every step of every claim in a run is recorded on that claim, and the queue agent's context holds one line per claim
-- [ ] `get_instructions` returns both sets of instructions, and searching `backend/` and `agent/` for `evals` finds nothing
-- [ ] `npm run check:python` passes
+- [x] `uv run pytest -q` passes, with a stub model for the queue agent and another for the claim agents
+- [x] A stubbed run capped at 2 works two claims, writes and updates the to-do list, finishes with a summary, and leaves 23 claims `waiting`
+- [x] A stubbed run where one claim agent fails: the run carries on, the queue agent retries the claim and it is decided
+- [x] A stubbed run where a claim fails twice: it ends `needs_handler` and its to-do item `left_for_handler`, and the run finishes
+- [x] A stubbed queue agent that tries to finish early gets the 409 listing the missed claims, works them, then finishes
+- [x] Every step of every claim in a run is recorded on that claim, and the queue agent's context holds one line per claim
+- [x] `get_instructions` returns both sets of instructions, and searching `backend/` and `agent/` for `evals` finds nothing
+- [x] `npm run check:python` passes
 
 ## Phase 5: The dashboard
 

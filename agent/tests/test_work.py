@@ -61,6 +61,7 @@ def test_failure_goes_back_in_the_queue(client, monkeypatch):
     assert steps[-1]["kind"] == "error"
 
 
+@pytest.mark.usefixtures("no_queue_agent")
 def test_second_failure_is_left_for_a_handler(client, monkeypatch):
     broken(monkeypatch)
     start("CLM-1001")
@@ -128,6 +129,7 @@ def test_reports(client):
     assert main.work_claim("CLM-1013", model) == "CLM-1013: approve, $61.00, not paid"
 
 
+@pytest.mark.usefixtures("no_queue_agent")
 def test_startup_recovers_an_interrupted_run(client):
     run_id = client.post("/api/runs", json={"cap": 5}).json()["run_id"]
     client.post(f"/api/runs/{run_id}/claims/CLM-1001/start")

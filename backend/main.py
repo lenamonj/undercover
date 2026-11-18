@@ -12,9 +12,10 @@ from fastapi import BackgroundTasks, FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
 from agent import main as undercover_agent
+from agent import queue as queue_agent
 from backend import db, documents
 
-INSTRUCTIONS = Path(__file__).parent / "instructions.md"
+INSTRUCTIONS = Path(__file__).parent / "instructions"
 MAX_ATTEMPTS = 2
 
 
@@ -243,8 +244,11 @@ def read_section(document: documents.Document, number: int) -> dict[str, Any]:
 
 @app.get("/api/instructions", operation_id="get_instructions")
 def get_instructions() -> dict[str, str]:
-    """Get the UnderCover Agent's instructions."""
-    return {"instructions": INSTRUCTIONS.read_text(encoding="utf-8")}
+    """Get the agent's instructions for running the queue and for working a claim."""
+    return {
+        name: (INSTRUCTIONS / f"{name}.md").read_text(encoding="utf-8")
+        for name in ("queue", "claim")
+    }
 
 
 @app.get("/api/handlers", operation_id="list_handlers")
@@ -368,17 +372,6 @@ def begin_claim(claim_id: str, run_id: int | None) -> bool:
     return bool(started)
 
 
-def work_waiting_claims(claim_ids: list[str]) -> None:
-    for claim_id in claim_ids:
-        if begin_claim(claim_id, None):
-            undercover_agent.work_claim(claim_id)
-        else:
-            with db.connect() as conn:
-                conn.execute(
-                    "UPDATE claims SET running = 0 WHERE claim_id = ?", (claim_id,)
-                )
-
-
 @app.post("/api/claims/{claim_id}/run", operation_id="run_agent")
 def run_agent(claim_id: str, background_tasks: BackgroundTasks) -> dict[str, str]:
     """Start the UnderCover Agent on one waiting claim."""
@@ -386,23 +379,6 @@ def run_agent(claim_id: str, background_tasks: BackgroundTasks) -> dict[str, str
         raise conflict(f"Claim {claim_id} is not waiting")
     background_tasks.add_task(undercover_agent.work_claim, claim_id)
     return {"claim_id": claim_id, "status": "in_progress"}
-
-
-@app.post("/api/queue/run", operation_id="work_queue")
-def work_queue(background_tasks: BackgroundTasks) -> dict[str, int]:
-    """Run the UnderCover Agent on every waiting claim, one after another."""
-    with db.connect() as conn:
-        rows = conn.execute(
-            "SELECT claim_id FROM claims WHERE status = 'waiting' AND running = 0"
-            " ORDER BY claim_id"
-        ).fetchall()
-        conn.executemany(
-            "UPDATE claims SET running = 1 WHERE claim_id = ?",
-            [(row["claim_id"],) for row in rows],
-        )
-    claim_ids = [row["claim_id"] for row in rows]
-    background_tasks.add_task(work_waiting_claims, claim_ids)
-    return {"queued": len(claim_ids)}
 
 
 def run_row(conn: sqlite3.Connection, run_id: int) -> sqlite3.Row:
@@ -455,9 +431,11 @@ def create_run(cap: int) -> dict[str, Any]:
 
 
 @app.post("/api/runs", operation_id="start_run")
-def start_run(request: RunRequest) -> dict[str, Any]:
+def start_run(request: RunRequest, background_tasks: BackgroundTasks) -> dict[str, Any]:
     """Start a run of the agent on the queue, capped at a number of claims."""
-    return create_run(request.cap)
+    run = create_run(request.cap)
+    background_tasks.add_task(queue_agent.work_run, run["run_id"])
+    return run
 
 
 @app.get("/api/runs/current", operation_id="get_current_run")
@@ -566,3 +544,16 @@ def recover() -> None:
             " finished_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')"
             " WHERE status = 'running'"
         )
+
+
+@app.post("/api/runs/{run_id}/failure", operation_id="fail_run")
+def fail_run(run_id: int, failure: Failure) -> dict[str, Any]:
+    """Record that a run stopped before it finished."""
+    with db.connect() as conn:
+        running_run(conn, run_id)
+        conn.execute(
+            "UPDATE runs SET status = 'failed', error = ?,"
+            " finished_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE run_id = ?",
+            (failure.error, run_id),
+        )
+        return run_view(conn, run_row(conn, run_id))

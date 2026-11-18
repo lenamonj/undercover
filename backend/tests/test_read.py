@@ -91,7 +91,9 @@ def test_whole_wording_is_gone(client):
 
 
 def test_instructions(client):
-    assert "UnderCover Agent" in client.get("/api/instructions").json()["instructions"]
+    instructions = client.get("/api/instructions").json()
+    assert instructions["queue"].startswith("You are the UnderCover Agent.")
+    assert "claims manual" in instructions["claim"]
 
 
 def test_handlers(client):

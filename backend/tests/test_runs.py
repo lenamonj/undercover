@@ -1,4 +1,8 @@
+import pytest
+
 from backend import db
+
+pytestmark = pytest.mark.usefixtures("no_queue_agent")
 
 
 def new_run(client, cap: int) -> int:

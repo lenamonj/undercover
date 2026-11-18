@@ -133,9 +133,9 @@ def model() -> ChatOpenAI:
     )
 
 
-def instructions() -> str:
-    """Fetch the agent's instructions from the backend."""
-    return json.loads(call("GET", "/api/instructions"))["instructions"]
+def instructions(name: Literal["queue", "claim"]) -> str:
+    """Fetch the queue agent's or the claim agent's instructions from the backend."""
+    return json.loads(call("GET", "/api/instructions"))[name]
 
 
 def add_step(claim_id: str, kind: str, detail: str) -> None:
@@ -173,7 +173,7 @@ def run(claim_id: str, thread_id: str, llm: BaseChatModel | None = None) -> str:
     agent = create_agent(
         llm or model(),
         tools=TOOLS,
-        system_prompt=instructions(),
+        system_prompt=instructions("claim"),
         middleware=claim_middleware(),
     )
     reply = ""

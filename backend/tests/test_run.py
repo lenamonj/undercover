@@ -3,8 +3,7 @@ from langchain_core.messages import AIMessage
 
 from agent import main as agent
 from agent.tests.stub import Backend, call, decision, stub
-from backend import db
-from backend.main import app, work_waiting_claims
+from backend.main import app
 
 
 @pytest.fixture(autouse=True)
@@ -65,21 +64,6 @@ def test_rerun_clears_earlier_steps(client, monkeypatch):
     assert len(client.get("/api/claims/CLM-1001/steps").json()) == 2
 
 
-def test_work_queue_leaves_nothing_waiting(client, monkeypatch):
-    def refer_current_claim():
-        claim_id = next(
-            c["claim_id"]
-            for c in client.get("/api/claims").json()
-            if c["status"] == "in_progress"
-        )
-        return stub(decision(claim_id, "refer", 0), AIMessage(content="Referred."))
-
-    use_model(monkeypatch, refer_current_claim)
-    assert client.post("/api/queue/run").json() == {"queued": 25}
-    statuses = {c["status"] for c in client.get("/api/claims").json()}
-    assert statuses == {"decided"}
-
-
 def test_unknown_claim(client):
     assert client.post("/api/claims/CLM-0000/run").status_code == 404
 
@@ -88,17 +72,7 @@ def test_running_flag_clears_when_runs_end(client, monkeypatch):
     use_model(monkeypatch, lambda: stub(AIMessage(content="Thinking.")))
     client.post("/api/claims/CLM-1001/run")
     assert client.get("/api/claims/CLM-1001").json()["running"] is False
-    client.post("/api/queue/run")
-    assert not any(c["running"] for c in client.get("/api/claims").json())
 
 
-def test_queued_claim_started_elsewhere_is_skipped(client):
-    with db.connect() as conn:
-        conn.execute(
-            "UPDATE claims SET status = 'decided', running = 1"
-            " WHERE claim_id = 'CLM-1001'"
-        )
-    work_waiting_claims(["CLM-1001"])
-    claim = client.get("/api/claims/CLM-1001").json()
-    assert claim["status"] == "decided"
-    assert claim["running"] is False
+def test_work_queue_is_gone(client):
+    assert client.post("/api/queue/run").status_code == 404
