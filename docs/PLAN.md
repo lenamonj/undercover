@@ -61,17 +61,17 @@ As the spec says: the claims manual, sign-in, real payments and messages to cust
 
 **Why first:** everything else reads from here. Seeding at startup means `npm run dev` works on a fresh clone with no setup step.
 
-- [ ] `uv run pytest -q backend` passes, with tests for seeding and every read operation, including a 404 for an unknown claim, policy and customer
-- [ ] `GET /api/claims` returns 25 claims, all with status `waiting`
-- [ ] `GET /api/claims/CLM-1001` returns the story, the three items, the documents and `amount_claimed` of 420.0
-- [ ] `GET /api/policies/POL-2001` returns the Premium plan's limits alongside the policy
-- [ ] `GET /api/customers/CUS-3001/claim-history` returns CLM-0412 and no email, phone or address
-- [ ] `GET /api/policy-wording` returns the text of `data/policy_wording.md`
-- [ ] A test asserts that CLM-1901 (the security claim) is not in the queue
-- [ ] Searching `backend/` and `agent/` for `evals` finds nothing
-- [ ] `/openapi.json` shows an `operationId` and a summary for every route, and no optional parameters
-- [ ] `backend/undercover.db` is ignored by git
-- [ ] Restarting the backend does not reseed or duplicate claims
+- [x] `uv run pytest -q backend` passes, with tests for seeding and every read operation, including a 404 for an unknown claim, policy and customer
+- [x] `GET /api/claims` returns 25 claims, all with status `waiting`
+- [x] `GET /api/claims/CLM-1001` returns the story, the three items, the documents and `amount_claimed` of 420.0
+- [x] `GET /api/policies/POL-2001` returns the Premium plan's limits alongside the policy
+- [x] `GET /api/customers/CUS-3001/claim-history` returns CLM-0412 and no email, phone or address
+- [x] `GET /api/policy-wording` returns the text of `data/policy_wording.md`
+- [x] A test asserts that CLM-1901 (the security claim) is not in the queue
+- [x] Searching `backend/` and `agent/` for `evals` finds nothing
+- [x] `/openapi.json` shows an `operationId` and a summary for every route, and no optional parameters
+- [x] `backend/undercover.db` is ignored by git
+- [x] Restarting the backend does not reseed or duplicate claims
 
 ## Phase 2: Decisions, payments and sign-off
 
