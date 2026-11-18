@@ -73,7 +73,9 @@ def test_handlers(client):
 
 def test_unknown_records(client):
     assert client.get("/api/claims/CLM-0000").status_code == 404
-    assert client.get("/api/policies/POL-0000").status_code == 404
+    missing = client.get("/api/policies/POL-0000")
+    assert missing.status_code == 404
+    assert missing.json()["detail"] == "No policy POL-0000"
     assert client.get("/api/customers/CUS-0000/claim-history").status_code == 404
 
 

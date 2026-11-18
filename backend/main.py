@@ -72,7 +72,7 @@ def document(conn: sqlite3.Connection, table: str, key: str, value: str) -> Any:
         (value,),
     ).fetchone()
     if row is None:
-        raise HTTPException(404, f"No {table[:-1]} {value}")
+        raise HTTPException(404, f"No {key.removesuffix('_id')} {value}")
     return json.loads(row["data"])
 
 

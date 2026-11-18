@@ -154,12 +154,12 @@ Brand: Instrument Sans, Instrument Serif and JetBrains Mono from Google Fonts; t
 
 **Why last:** the end-to-end tests prove the three parts work together, and the live run is the first time the instructions meet a real model, so there is room here to adjust the wording of the instructions.
 
-- [ ] Playwright: running the agent on a claim shows its steps appearing, then the decision, reason and policy section, and the queue shows the claim as decided
-- [ ] Playwright: a stubbed approval over $1,000 shows the claim as waiting for sign-off with the blocked payment in its steps; after a handler signs off, it shows as decided and paid with the handler's name
-- [ ] Playwright: "Work the queue" leaves no claim waiting
-- [ ] Playwright: the instructions page shows the instructions
-- [ ] Live, with `OPENROUTER_API_KEY` set: running the agent on CLM-1001 from the dashboard ends with a decision, a payout, a reason of two or three sentences and a policy section, and every step visible. The model's answer is recorded in `docs/STATUS.md`, not checked against `data/evals/`
-- [ ] Live: one claim with more than $1,000 claimed is run, and if the agent approves over the limit, the payment is blocked until sign-off
-- [ ] `npm run check` passes in full, and the output is reported
-- [ ] `docs/STATUS.md` says what is built and how to run, reset and test it, and `README.md` stays short
-- [ ] Every phase is committed, nothing is pushed
+- [x] Playwright: running the agent on a claim shows its steps appearing, then the decision, reason and policy section, and the queue shows the claim as decided
+- [x] Playwright: a stubbed approval over $1,000 shows the claim as waiting for sign-off with the blocked payment in its steps; after a handler signs off, it shows as decided and paid with the handler's name
+- [x] Playwright: "Work the queue" leaves no claim waiting
+- [x] Playwright: the instructions page shows the instructions
+- [x] Live, with `OPENROUTER_API_KEY` set: running the agent on CLM-1001 from the dashboard ends with a decision, a payout, a reason of two or three sentences and a policy section, and every step visible. The model's answer is recorded in `docs/STATUS.md`, not checked against `data/evals/`
+- [x] Live: one claim with more than $1,000 claimed is run, and if the agent approves over the limit, the payment is blocked until sign-off
+- [x] `npm run check` passes in full, and the output is reported
+- [x] `docs/STATUS.md` says what is built and how to run, reset and test it, and `README.md` stays short
+- [x] Every phase is committed, nothing is pushed
