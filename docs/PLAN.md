@@ -120,13 +120,13 @@ Rules the backend enforces, each returning 409 with a plain message when broken 
 
 **Why separate from Phase 3:** the agent is testable alone with a stub, and this phase adds only the wiring and the one failure case that matters.
 
-- [ ] `uv run pytest -q` passes at 80% coverage or more across `backend/` and `agent/`
-- [ ] `run_agent` on a waiting claim returns at once with status `in_progress`; on a claim in any other state it returns 409
-- [ ] With a stub model, a run started through `run_agent` ends with the claim `decided` and its steps listed by `list_steps`
-- [ ] A stubbed run that raises leaves the claim `waiting` with a step that carries the error
-- [ ] A stubbed run that ends without a decision leaves the claim `waiting` with a step saying so
-- [ ] `work_queue` with a stub model leaves no claim `waiting` or `in_progress`
-- [ ] `npm run check:python` passes: ruff, pyright and pytest
+- [x] `uv run pytest -q` passes at 80% coverage or more across `backend/` and `agent/`
+- [x] `run_agent` on a waiting claim returns at once with status `in_progress`; on a claim in any other state it returns 409
+- [x] With a stub model, a run started through `run_agent` ends with the claim `decided` and its steps listed by `list_steps`
+- [x] A stubbed run that raises leaves the claim `waiting` with a step that carries the error
+- [x] A stubbed run that ends without a decision leaves the claim `waiting` with a step saying so
+- [x] `work_queue` with a stub model leaves no claim `waiting` or `in_progress`
+- [x] `npm run check:python` passes: ruff, pyright and pytest
 
 ## Phase 5: The dashboard
 

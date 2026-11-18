@@ -2,14 +2,16 @@
 
 import json
 import sqlite3
+import uuid
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any, Literal
 
-from fastapi import FastAPI, HTTPException
+from fastapi import BackgroundTasks, FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
+from agent import main as undercover_agent
 from backend import db
 
 INSTRUCTIONS = Path(__file__).parent / "instructions.md"
@@ -278,3 +280,67 @@ def list_steps(claim_id: str) -> list[dict[str, Any]]:
             (claim_id,),
         ).fetchall()
     return [dict(row) for row in rows]
+
+
+def start_claim(claim_id: str) -> bool:
+    """Move a waiting claim to in progress with fresh steps; False if not waiting."""
+    with db.connect() as conn:
+        claim_row(conn, claim_id)
+        started = conn.execute(
+            "UPDATE claims SET status = 'in_progress', thread_id = ?"
+            " WHERE claim_id = ? AND status = 'waiting'",
+            (str(uuid.uuid4()), claim_id),
+        ).rowcount
+        if started:
+            conn.execute("DELETE FROM steps WHERE claim_id = ?", (claim_id,))
+    return bool(started)
+
+
+def return_to_queue(claim_id: str, message: str) -> None:
+    with db.connect() as conn:
+        add_step_row(conn, claim_id, Step(kind="error", detail=message))
+        conn.execute(
+            "UPDATE claims SET status = 'waiting' WHERE claim_id = ?", (claim_id,)
+        )
+
+
+def work_claim(claim_id: str) -> None:
+    """Run the agent on a claim, and put it back in the queue if it fails."""
+    with db.connect() as conn:
+        thread_id = claim_row(conn, claim_id)["thread_id"]
+    try:
+        undercover_agent.run(claim_id, thread_id)
+    except Exception as error:  # noqa: BLE001
+        return_to_queue(claim_id, f"The agent failed: {error}")
+        return
+    with db.connect() as conn:
+        still_in_progress = claim_row(conn, claim_id)["status"] == "in_progress"
+    if still_in_progress:
+        return_to_queue(claim_id, "The agent ended without recording a decision.")
+
+
+def work_waiting_claims(claim_ids: list[str]) -> None:
+    for claim_id in claim_ids:
+        if start_claim(claim_id):
+            work_claim(claim_id)
+
+
+@app.post("/api/claims/{claim_id}/run", operation_id="run_agent")
+def run_agent(claim_id: str, background_tasks: BackgroundTasks) -> dict[str, str]:
+    """Start the UnderCover Agent on one waiting claim."""
+    if not start_claim(claim_id):
+        raise conflict(f"Claim {claim_id} is not waiting")
+    background_tasks.add_task(work_claim, claim_id)
+    return {"claim_id": claim_id, "status": "in_progress"}
+
+
+@app.post("/api/queue/run", operation_id="work_queue")
+def work_queue(background_tasks: BackgroundTasks) -> dict[str, int]:
+    """Run the UnderCover Agent on every waiting claim, one after another."""
+    with db.connect() as conn:
+        rows = conn.execute(
+            "SELECT claim_id FROM claims WHERE status = 'waiting' ORDER BY claim_id"
+        ).fetchall()
+    claim_ids = [row["claim_id"] for row in rows]
+    background_tasks.add_task(work_waiting_claims, claim_ids)
+    return {"queued": len(claim_ids)}
