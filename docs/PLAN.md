@@ -77,7 +77,7 @@ As the spec says: the claims manual, sign-in, real payments and messages to cust
 
 **Builds:** `record_decision`, `pay_claim` and `sign_off_claim`, with the state changes in the table above.
 
-Rules the backend enforces, each returning 409 with a plain message when broken:
+Rules the backend enforces, each returning 409 with a plain message when broken (422 for an invalid payout, 404 for an unknown handler):
 
 - A decision is recorded only on a claim that is `in_progress`.
 - `decision` is `approve`, `decline` or `refer`. The payout is greater than zero for an approval and zero otherwise.
@@ -87,13 +87,13 @@ Rules the backend enforces, each returning 409 with a plain message when broken:
 
 **Why now:** this is the pilot's one hard rule, so it gets built and tested on its own before any agent exists to test it.
 
-- [ ] `uv run pytest -q backend` passes, with a test for each rule above
-- [ ] Approving for $420.00 sets the claim to `decided`, and paying $420.00 then succeeds
-- [ ] Approving for $1,000.00 exactly does not need sign-off; $1,000.01 does
-- [ ] Approving for $1,500.00 sets the claim to `awaiting_sign_off`, and `pay_claim` for $1,500.00 returns 409 with no payment recorded
-- [ ] After `sign_off_claim` with `HND-01`, the claim is `decided`, the payment of $1,500.00 is recorded and the handler's name is on the claim
-- [ ] Paying twice, paying a declined claim and paying the wrong amount each return 409
-- [ ] `get_claim` shows the decision, reason, policy section, payment and sign-off
+- [x] `uv run pytest -q backend` passes, with a test for each rule above
+- [x] Approving for $420.00 sets the claim to `decided`, and paying $420.00 then succeeds
+- [x] Approving for $1,000.00 exactly does not need sign-off; $1,000.01 does
+- [x] Approving for $1,500.00 sets the claim to `awaiting_sign_off`, and `pay_claim` for $1,500.00 returns 409 with no payment recorded
+- [x] After `sign_off_claim` with `HND-01`, the claim is `decided`, the payment of $1,500.00 is recorded and the handler's name is on the claim
+- [x] Paying twice, paying a declined claim and paying the wrong amount each return 409
+- [x] `get_claim` shows the decision, reason, policy section, payment and sign-off
 
 ## Phase 3: The UnderCover Agent
 
