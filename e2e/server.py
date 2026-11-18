@@ -19,6 +19,9 @@ os.environ["UNDERCOVER_URL"] = f"http://127.0.0.1:{PORT}"
 from agent import main as agent  # noqa: E402
 from backend import db  # noqa: E402
 
+# The agent loads .env on import. Drop the key so no test can reach a real model.
+os.environ.pop("OPENROUTER_API_KEY", None)
+
 STEP_DELAY_SECONDS = 0.2
 
 
