@@ -7,12 +7,13 @@ import type {
   Handler,
   Policy,
   QueueItem,
+  Run,
   Step,
 } from "./api";
 import { App } from "./App";
 
 // Use a getter for a route whose reply changes between calls.
-export type Routes = Record<string, object>;
+export type Routes = Record<string, object | null>;
 
 export function mockApi(...routeSets: Routes[]) {
   const fetchMock = vi.fn((url: string, init?: RequestInit) => {
@@ -70,6 +71,7 @@ export const claim = (overrides: Partial<Claim> = {}): Claim => ({
   decision: null,
   payout: null,
   running: false,
+  attempts: 0,
   reason: null,
   policy_section: null,
   paid_amount: null,
@@ -122,6 +124,24 @@ export const step = (overrides: Partial<Step> = {}): Step => ({
   kind: "tool_call",
   detail: 'get_claim {"claim_id": "CLM-1001"}',
   created_at: "2026-11-18T10:00:00Z",
+  ...overrides,
+});
+
+export const run = (overrides: Partial<Run> = {}): Run => ({
+  run_id: 1,
+  cap: 5,
+  status: "running",
+  claims_started: 2,
+  todos: [
+    { content: "Work CLM-1001", status: "done" },
+    { content: "Work CLM-1002", status: "in_progress" },
+    { content: "Work CLM-1003", status: "pending" },
+    { content: "Work CLM-1004", status: "left_for_handler" },
+  ],
+  summary: null,
+  error: null,
+  started_at: "2026-11-18T10:00:00Z",
+  finished_at: null,
   ...overrides,
 });
 

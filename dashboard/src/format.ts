@@ -19,6 +19,7 @@ export const STATUS_LABELS: Record<Status, string> = {
   in_progress: "In progress",
   awaiting_sign_off: "Waiting for sign-off",
   decided: "Decided",
+  needs_handler: "Left for a handler",
 };
 
 export const VERDICT_LABELS: Record<Verdict, string> = {
@@ -32,4 +33,5 @@ export const STATUSES: Status[] = [
   "in_progress",
   "awaiting_sign_off",
   "decided",
+  "needs_handler",
 ];

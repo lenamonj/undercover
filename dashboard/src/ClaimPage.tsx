@@ -13,6 +13,7 @@ import {
   DecisionPanel,
   HistoryPanel,
   PolicyPanel,
+  SectionsRead,
   SignOffForm,
   StepsPanel,
 } from "./ClaimParts";
@@ -116,6 +117,7 @@ export function ClaimPage() {
               }}
             />
           )}
+          <SectionsRead steps={steps} />
           <StepsPanel steps={steps} working={working} />
         </div>
         <div className="column">

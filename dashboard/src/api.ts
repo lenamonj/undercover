@@ -1,5 +1,5 @@
 export type Status =
-  "waiting" | "in_progress" | "awaiting_sign_off" | "decided";
+  "waiting" | "in_progress" | "awaiting_sign_off" | "decided" | "needs_handler";
 export type Verdict = "approve" | "decline" | "refer";
 
 export interface QueueItem {
@@ -44,6 +44,7 @@ export interface Claim {
   decision: Verdict | null;
   payout: number | null;
   running: boolean;
+  attempts: number;
   reason: string | null;
   policy_section: string | null;
   paid_amount: number | null;
@@ -84,7 +85,7 @@ export interface ClaimHistory {
 
 export interface Step {
   step_id: number;
-  kind: "tool_call" | "tool_result" | "reply" | "error";
+  kind: "tool_call" | "tool_result" | "read" | "reply" | "error";
   detail: string;
   created_at: string;
 }
@@ -93,6 +94,28 @@ export interface Handler {
   handler_id: string;
   name: string;
   role: string;
+}
+
+export interface Todo {
+  content: string;
+  status: "pending" | "in_progress" | "done" | "left_for_handler";
+}
+
+export interface Run {
+  run_id: number;
+  cap: number;
+  status: "running" | "finished" | "failed" | "interrupted";
+  claims_started: number;
+  todos: Todo[];
+  summary: string | null;
+  error: string | null;
+  started_at: string;
+  finished_at: string | null;
+}
+
+export interface Instructions {
+  queue: string;
+  claim: string;
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -119,9 +142,10 @@ export const api = {
   getClaimHistory: (id: string) =>
     request<ClaimHistory>(`/api/customers/${id}/claim-history`),
   listHandlers: () => request<Handler[]>("/api/handlers"),
-  getInstructions: () => request<{ instructions: string }>("/api/instructions"),
+  getInstructions: () => request<Instructions>("/api/instructions"),
+  getCurrentRun: () => request<Run | null>("/api/runs/current"),
+  startRun: (cap: number) => post<Run>("/api/runs", { cap }),
   runAgent: (id: string) => post<unknown>(`/api/claims/${id}/run`),
-  workQueue: () => post<{ queued: number }>("/api/queue/run"),
   signOff: (id: string, handlerId: string) =>
     post<Claim>(`/api/claims/${id}/sign-off`, { handler_id: handlerId }),
 };

@@ -79,6 +79,7 @@ export function SignOffForm({
 const STEP_LABELS: Record<Step["kind"], string> = {
   tool_call: "Calls",
   tool_result: "Result",
+  read: "Read",
   reply: "Agent",
   error: "Error",
 };
@@ -124,6 +125,12 @@ export function ClaimDetails({ claim }: Readonly<{ claim: Claim }>) {
         </dd>
         <dt>Submitted</dt>
         <dd>{claim.submitted_on}</dd>
+        {claim.attempts > 0 && (
+          <>
+            <dt>Failed attempts</dt>
+            <dd>{claim.attempts}</dd>
+          </>
+        )}
       </dl>
       <blockquote className="story">{claim.story}</blockquote>
       <table>
@@ -203,6 +210,21 @@ export function HistoryPanel({ history }: Readonly<{ history: ClaimHistory }>) {
             {earlier.summary}. {words(earlier.outcome)},{" "}
             {money(earlier.amount_paid)} paid.
           </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+export function SectionsRead({ steps }: Readonly<{ steps: Step[] }>) {
+  const reads = steps.filter((step) => step.kind === "read");
+  return (
+    <section className="panel" aria-labelledby="sections-heading">
+      <h2 id="sections-heading">Sections read</h2>
+      {reads.length === 0 && <p className="muted">None yet.</p>}
+      <ul className="history">
+        {reads.map((step) => (
+          <li key={step.step_id}>{step.detail}</li>
         ))}
       </ul>
     </section>

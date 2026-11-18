@@ -1,6 +1,6 @@
 # Status
 
-The claims pilot from `docs/PLAN.md` is built. The harness from `docs/PLAN_HARNESS.md` is in progress: phases 1 to 4 of 6 are done.
+The claims pilot from `docs/PLAN.md` is built. The harness from `docs/PLAN_HARNESS.md` is in progress: phases 1 to 5 of 6 are done.
 
 ## Built
 
@@ -14,7 +14,7 @@ The claims pilot from `docs/PLAN.md` is built. The harness from `docs/PLAN_HARNE
   - The instructions are in `backend/instructions/queue.md` and `backend/instructions/claim.md`, written from the policy wording and the claims manual.
 - `agent/queue.py`: the queue agent, `work_run(run_id)`. A `create_agent` with four tools: `list_waiting_claims`, `write_todos`, `work_claim` (starts the claim in the run, then hands it to a fresh claim agent and returns its one-line report) and `finish_run`. A run that raises or ends without finishing is marked `failed`.
 - `agent/main.py`: the claim agent, `run(claim_id, thread_id)`. LangChain's `create_agent` on OpenRouter with six tools that call the backend's API: `get_claim`, `get_policy`, `get_claim_history`, `list_sections`, `read_section`, `record_decision` and `pay_claim`. Each section read is recorded as a `read` step. It fetches its instructions from `get_instructions` and posts each tool call, tool result and reply as a step. A refused call comes back to the model as text. `work_claim(claim_id)` runs a fresh claim agent on a started claim, records a failure if it raises or ends without a decision, and returns a one-line report. Middleware retries provider errors and timed-out tool calls and stops an agent after 30 model calls; the model times out after 60 seconds. It reaches the backend at `UNDERCOVER_URL`, or `http://localhost:8000`.
-- `dashboard/`: React, React Router and plain CSS in the brand's fonts and colors, light and dark. The queue with a count for each state and "Work the queue". Each claim in full, with its policy, claim history, the agent's decision and reasons, the agent's steps (polled every second while it runs), "Run the agent" and the sign-off form. The agent's instructions, read only.
+- `dashboard/`: React, React Router and plain CSS in the brand's fonts and colors, light and dark. The queue with a count for each of the five states, a cap ("Claims to work", default 5) beside "Work the queue", and the current run's to-do list, status and summary, refreshed every second while the run is going. Each claim in full, with its policy, claim history, the agent's decision and reasons, the agent's steps (polled every second while it runs), "Run the agent", the sign-off form, the sections the agent read and its failed attempts. Both sets of instructions, read only.
 - `e2e/`: Playwright tests against `e2e/server.py`, a backend on port 8001 with a fresh database and a scripted model, and a dashboard on port 5174.
 
 `data/evals/` and `data/security/` are never loaded.

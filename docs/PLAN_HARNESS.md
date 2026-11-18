@@ -128,9 +128,9 @@ Anything from later briefs: durable state, evaluations, parallel claim agents, a
 - **Claim page:** a "Sections read" panel listing the `read` steps, and the attempts count when it is above zero.
 - **Instructions page:** the queue agent's and the claim agent's instructions, each under its own heading, still read only.
 
-- [ ] `npm run check:ts` passes, with vitest at 80% coverage or more
-- [ ] Vitest covers the cap input, the to-do list in all four states, the run summary, the `needs_handler` status, "Sections read" and both sets of instructions
-- [ ] In the browser (Playwright MCP): the to-do list and counts render at 1280px and 390px wide, in light and dark mode, with no page-wide horizontal scroll
+- [x] `npm run check:ts` passes, with vitest at 80% coverage or more
+- [x] Vitest covers the cap input, the to-do list in all four states, the run summary, the `needs_handler` status, "Sections read" and both sets of instructions
+- [x] In the browser (Playwright MCP): the to-do list and counts render at 1280px and 390px wide, in light and dark mode, with no page-wide horizontal scroll
 
 ## Phase 6: End to end, a live capped run and the documents
 

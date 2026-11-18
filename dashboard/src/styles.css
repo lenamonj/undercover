@@ -384,3 +384,104 @@ select {
   background: var(--raspberry);
   color: #ffffff;
 }
+
+.count-needs_handler,
+.badge-needs_handler {
+  background: var(--raspberry);
+  color: #ffffff;
+}
+
+.run-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.run-controls label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+input[type="number"] {
+  width: 96px;
+  padding: 8px;
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 15px;
+}
+
+.run-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.run-head h2 {
+  margin: 0;
+}
+
+.run-running {
+  background: var(--marigold);
+}
+
+.run-finished {
+  background: var(--sea-green);
+}
+
+.run-failed,
+.run-interrupted {
+  background: var(--raspberry);
+  color: #ffffff;
+}
+
+.todos {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.todo {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: 10px;
+  align-items: baseline;
+}
+
+.todo-status {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.todo-in_progress .todo-status {
+  color: var(--ink);
+}
+
+.todo-done {
+  color: var(--muted);
+}
+
+.todo-done .todo-status {
+  color: var(--accent-ink);
+}
+
+.todo-left_for_handler .todo-status {
+  color: var(--raspberry);
+}
+
+.summary {
+  margin: 14px 0 0;
+  font-family: var(--serif);
+  font-size: 18px;
+}

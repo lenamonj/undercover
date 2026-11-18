@@ -102,6 +102,24 @@ it("shows a decided claim that was signed off and paid", async () => {
   expect(screen.queryByRole("button", { name: "Run the agent" })).toBeNull();
 });
 
+it("lists the sections read and the failed attempts", async () => {
+  mockApi(
+    claimRoutes(claim({ status: "waiting", attempts: 1 }), [
+      step({
+        step_id: 1,
+        kind: "read",
+        detail: "Claims manual 9. Repeat claims",
+      }),
+      step({ step_id: 2, kind: "error", detail: "The agent failed: timeout" }),
+    ]),
+  );
+  renderAt("/claims/CLM-1001");
+  const sections = await screen.findByRole("region", { name: "Sections read" });
+  expect(sections.textContent).toContain("Claims manual 9. Repeat claims");
+  expect(screen.getByText("Failed attempts")).toBeDefined();
+  expect(screen.getByText("Read")).toBeDefined();
+});
+
 it("shows a declined claim as not paid", async () => {
   mockApi(
     claimRoutes(

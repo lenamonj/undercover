@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router";
-import { api, type QueueItem } from "./api";
+import { api, type QueueItem, type Run } from "./api";
 import {
   money,
   STATUS_LABELS,
@@ -8,16 +8,23 @@ import {
   VERDICT_LABELS,
   words,
 } from "./format";
+import { RunPanel } from "./RunPanel";
 import { StatusBadge } from "./StatusBadge";
+
+const DEFAULT_CAP = 5;
 
 export function QueuePage() {
   const [queue, setQueue] = useState<QueueItem[]>();
+  const [run, setRun] = useState<Run | null>(null);
+  const [cap, setCap] = useState(DEFAULT_CAP);
   const [error, setError] = useState<string>();
 
   const refresh = useCallback(() => {
-    api
-      .listClaims()
-      .then(setQueue)
+    Promise.all([api.listClaims(), api.getCurrentRun()])
+      .then(([claims, current]) => {
+        setQueue(claims);
+        setRun(current);
+      })
       .catch((caught: unknown) => {
         setError(String(caught));
       });
@@ -27,7 +34,8 @@ export function QueuePage() {
     refresh();
   }, [refresh]);
 
-  const busy = queue?.some((claim) => claim.running) ?? false;
+  const running = run?.status === "running";
+  const busy = running || (queue?.some((claim) => claim.running) ?? false);
   useEffect(() => {
     if (!busy) return;
     const timer = setInterval(refresh, 1000);
@@ -38,7 +46,7 @@ export function QueuePage() {
 
   async function workQueue() {
     try {
-      await api.workQueue();
+      await api.startRun(cap);
       refresh();
     } catch (caught) {
       setError(String(caught));
@@ -54,13 +62,27 @@ export function QueuePage() {
     <>
       <div className="page-head">
         <h1>Claims queue</h1>
-        <button
-          type="button"
-          onClick={() => void workQueue()}
-          disabled={waiting === 0}
-        >
-          Work the queue
-        </button>
+        <div className="run-controls">
+          <label>
+            Claims to work
+            <input
+              type="number"
+              min={1}
+              max={queue.length}
+              value={cap}
+              onChange={(event) => {
+                setCap(Math.max(1, Number(event.target.value)));
+              }}
+            />
+          </label>
+          <button
+            type="button"
+            onClick={() => void workQueue()}
+            disabled={waiting === 0 || running}
+          >
+            Work the queue
+          </button>
+        </div>
       </div>
 
       <ul className="counts" aria-label="Claims by status">
@@ -73,6 +95,8 @@ export function QueuePage() {
           </li>
         ))}
       </ul>
+
+      {run && <RunPanel run={run} />}
 
       <div className="panel table-wrap">
         <table>
