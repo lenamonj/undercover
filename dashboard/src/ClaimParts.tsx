@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { AgentMark } from "./AgentMark";
 import type { Claim, ClaimHistory, Handler, Policy, Step } from "./api";
 import { money, VERDICT_LABELS, words } from "./format";
 
@@ -13,13 +14,16 @@ function paymentText(claim: Claim): string {
 export function DecisionPanel({ claim }: Readonly<{ claim: Claim }>) {
   if (!claim.decision) return null;
   return (
-    <section className="panel" aria-labelledby="decision-heading">
+    <section
+      className={`panel decision decision-${claim.decision}`}
+      aria-labelledby="decision-heading"
+    >
       <h2 id="decision-heading">Decision</h2>
+      <div className="verdict">
+        <span className="stamp">{VERDICT_LABELS[claim.decision]}</span>
+        <span className="payout">{money(claim.payout ?? 0)}</span>
+      </div>
       <dl className="facts">
-        <dt>Decision</dt>
-        <dd>{VERDICT_LABELS[claim.decision]}</dd>
-        <dt>Payout</dt>
-        <dd className="mono">{money(claim.payout ?? 0)}</dd>
         <dt>Payment</dt>
         <dd>{paymentText(claim)}</dd>
         {claim.signed_off_by && (
@@ -93,7 +97,10 @@ export function StepsPanel({
 }>) {
   return (
     <section className="panel" aria-labelledby="steps-heading">
-      <h2 id="steps-heading">Agent steps</h2>
+      <div className="steps-head">
+        <h2 id="steps-heading">Agent steps</h2>
+        <AgentMark size={36} working={working} />
+      </div>
       {steps.length === 0 && (
         <p className="muted">
           {working ? "The agent is starting" : "The agent has not run yet."}
@@ -107,7 +114,7 @@ export function StepsPanel({
           </li>
         ))}
       </ol>
-      {working && steps.length > 0 && <p className="muted">Working</p>}
+      {working && steps.length > 0 && <p className="working">Working</p>}
     </section>
   );
 }
@@ -132,7 +139,9 @@ export function ClaimDetails({ claim }: Readonly<{ claim: Claim }>) {
           </>
         )}
       </dl>
-      <blockquote className="story">{claim.story}</blockquote>
+      <blockquote className="story bubble bubble-customer">
+        {claim.story}
+      </blockquote>
       <table>
         <thead>
           <tr>
@@ -222,9 +231,18 @@ export function SectionsRead({ steps }: Readonly<{ steps: Step[] }>) {
     <section className="panel" aria-labelledby="sections-heading">
       <h2 id="sections-heading">Sections read</h2>
       {reads.length === 0 && <p className="muted">None yet.</p>}
-      <ul className="history">
+      <ul className="chips">
         {reads.map((step) => (
-          <li key={step.step_id}>{step.detail}</li>
+          <li
+            key={step.step_id}
+            className={
+              step.detail.startsWith("Claims manual")
+                ? "chip chip-manual"
+                : "chip chip-wording"
+            }
+          >
+            {step.detail}
+          </li>
         ))}
       </ul>
     </section>

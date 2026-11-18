@@ -21,10 +21,14 @@ export function InstructionsPage() {
     <>
       <h1>Agent instructions</h1>
       <p className="muted">What the UnderCover Agent is told. Read only.</p>
-      <h2>Running the queue</h2>
-      <pre className="panel instructions">{instructions.queue}</pre>
-      <h2>Working a claim</h2>
-      <pre className="panel instructions">{instructions.claim}</pre>
+      <section className="panel" aria-labelledby="queue-instructions">
+        <h2 id="queue-instructions">Running the queue</h2>
+        <pre className="instructions">{instructions.queue}</pre>
+      </section>
+      <section className="panel" aria-labelledby="claim-instructions">
+        <h2 id="claim-instructions">Working a claim</h2>
+        <pre className="instructions">{instructions.claim}</pre>
+      </section>
     </>
   );
 }

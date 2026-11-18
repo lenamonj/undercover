@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link } from "react-router";
 import { api, type QueueItem, type Run } from "./api";
+import { ClaimChip } from "./ClaimChip";
 import {
   money,
   STATUS_LABELS,
@@ -86,14 +86,22 @@ export function QueuePage() {
       </div>
 
       <ul className="counts" aria-label="Claims by status">
-        {STATUSES.map((status) => (
-          <li key={status} className={`count count-${status}`}>
-            <span className="count-number">
-              {queue.filter((claim) => claim.status === status).length}
-            </span>
-            <span>{STATUS_LABELS[status]}</span>
-          </li>
-        ))}
+        {STATUSES.map((status) => {
+          const count = queue.filter((c) => c.status === status).length;
+          return (
+            <li
+              key={status}
+              className={`count count-${status}`}
+              data-active={count > 0}
+            >
+              {/* The key restarts the pop animation when the number changes. */}
+              <span key={count} className="count-number">
+                {count}
+              </span>
+              <span className="count-label">{STATUS_LABELS[status]}</span>
+            </li>
+          );
+        })}
       </ul>
 
       {run && <RunPanel run={run} />}
@@ -113,11 +121,9 @@ export function QueuePage() {
           </thead>
           <tbody>
             {queue.map((claim) => (
-              <tr key={claim.claim_id}>
+              <tr key={claim.claim_id} data-running={claim.running}>
                 <td>
-                  <Link className="mono" to={`/claims/${claim.claim_id}`}>
-                    {claim.claim_id}
-                  </Link>
+                  <ClaimChip claimId={claim.claim_id} linked />
                 </td>
                 <td>{claim.customer_name}</td>
                 <td>{words(claim.claim_type)}</td>
