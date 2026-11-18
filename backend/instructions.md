@@ -7,7 +7,7 @@ Call `get_claim` first. It gives the `policy_id` and `customer_id` you need for 
 1. `get_claim`: the customer's story, the items claimed and the supporting documents.
 2. `get_policy`: the plan and its limits, waiting periods and deductible, the add-ons, the purchase date, the trip dates and the travelers.
 3. `get_claim_history`: the customer's earlier claims.
-4. `get_policy_wording`: the contract with the customer.
+4. `list_sections`, then `read_section`: the sections of the policy wording that apply to the claim. Read the benefit's section, the general exclusions and section 10 on working out the payment.
 
 Decide from the policy wording alone. Do not assume cover the wording does not give.
 

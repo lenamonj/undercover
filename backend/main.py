@@ -6,13 +6,13 @@ import uuid
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, get_args
 
 from fastapi import BackgroundTasks, FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
 from agent import main as undercover_agent
-from backend import db
+from backend import db, documents
 
 INSTRUCTIONS = Path(__file__).parent / "instructions.md"
 
@@ -33,7 +33,7 @@ class SignOff(BaseModel):
 
 
 class Step(BaseModel):
-    kind: Literal["tool_call", "tool_result", "reply", "error"]
+    kind: Literal["tool_call", "tool_result", "read", "reply", "error"]
     detail: str
 
 
@@ -166,12 +166,32 @@ def get_claim_history(customer_id: str) -> dict[str, Any]:
     }
 
 
-@app.get("/api/policy-wording", operation_id="get_policy_wording")
-def get_policy_wording() -> dict[str, str]:
-    """Get the policy wording, the contract with the customer."""
-    version = db.load("company.json")["policy_wording_version"]
-    text = (db.DATA_DIR / "policy_wording.md").read_text(encoding="utf-8")
-    return {"version": version, "text": text}
+@app.get("/api/documents/sections", operation_id="list_sections")
+def list_sections() -> list[dict[str, Any]]:
+    """List the numbered sections of the policy wording and the claims manual."""
+    return [
+        {
+            "document": name,
+            "document_title": documents.title(name),
+            "number": section["number"],
+            "title": section["title"],
+        }
+        for name in get_args(documents.Document)
+        for section in documents.sections(name)
+    ]
+
+
+@app.get("/api/documents/{document}/sections/{number}", operation_id="read_section")
+def read_section(document: documents.Document, number: int) -> dict[str, Any]:
+    """Read one section of the policy wording or the claims manual."""
+    for section in documents.sections(document):
+        if section["number"] == number:
+            return {
+                "document": document,
+                "document_title": documents.title(document),
+                **section,
+            }
+    raise HTTPException(404, f"No section {number} in {document}")
 
 
 @app.get("/api/instructions", operation_id="get_instructions")

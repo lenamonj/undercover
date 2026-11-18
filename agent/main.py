@@ -17,7 +17,7 @@ load_dotenv(override=True)
 
 BACKEND_URL = "http://localhost:8000"
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
-DEFAULT_MODEL = "openai/gpt-6-luna"
+DEFAULT_MODEL = "deepseek/deepseek-v4.1-flash"
 STEP_DETAIL_LIMIT = 600
 
 
@@ -56,9 +56,17 @@ def get_claim_history(customer_id: str) -> str:
 
 
 @tool
-def get_policy_wording() -> str:
-    """Get the policy wording, the contract with the customer."""
-    return call("GET", "/api/policy-wording")
+def list_sections() -> str:
+    """List the numbered sections of the policy wording and the claims manual."""
+    return call("GET", "/api/documents/sections")
+
+
+@tool
+def read_section(
+    document: Literal["policy_wording", "claims_manual"], number: int
+) -> str:
+    """Read one numbered section of the policy wording or the claims manual."""
+    return call("GET", f"/api/documents/{document}/sections/{number}")
 
 
 @tool
@@ -89,14 +97,15 @@ TOOLS = [
     get_claim,
     get_policy,
     get_claim_history,
-    get_policy_wording,
+    list_sections,
+    read_section,
     record_decision,
     pay_claim,
 ]
 
 
 def model() -> ChatOpenAI:
-    """Return the model named in MODEL_NAME, or GPT-6 Luna by default."""
+    """Return the model named in MODEL_NAME, or DeepSeek V4.1 Flash by default."""
     name = os.getenv("MODEL_NAME")
     return ChatOpenAI(
         model=name or DEFAULT_MODEL,
@@ -115,9 +124,19 @@ def add_step(claim_id: str, kind: str, detail: str) -> None:
     call("POST", f"/api/claims/{claim_id}/steps", {"kind": kind, "detail": detail})
 
 
+def section_read(result: str) -> str:
+    """Name the section a read_section result holds, or pass on its refusal."""
+    if result.startswith("Refused"):
+        return result[:STEP_DETAIL_LIMIT]
+    section = json.loads(result)
+    return f"{section['document_title']} {section['number']}. {section['title']}"
+
+
 def record_steps(claim_id: str, message: BaseMessage) -> None:
     """Post the steps one message represents to the backend."""
-    if isinstance(message, ToolMessage):
+    if isinstance(message, ToolMessage) and message.name == "read_section":
+        add_step(claim_id, "read", section_read(message.text))
+    elif isinstance(message, ToolMessage):
         detail = f"{message.name}: {message.text}"[:STEP_DETAIL_LIMIT]
         add_step(claim_id, "tool_result", detail)
     elif isinstance(message, AIMessage):

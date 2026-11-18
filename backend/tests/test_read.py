@@ -54,12 +54,40 @@ def test_get_claim_history(client):
     assert not {"email", "phone", "address", "date_of_birth"} & history.keys()
 
 
-def test_policy_wording(client):
-    wording = client.get("/api/policy-wording").json()
-    assert wording["text"] == (db.DATA_DIR / "policy_wording.md").read_text(
-        encoding="utf-8"
-    )
-    assert wording["version"] == "2026.1"
+def test_list_sections(client):
+    sections = client.get("/api/documents/sections").json()
+    wording = [s for s in sections if s["document"] == "policy_wording"]
+    manual = [s for s in sections if s["document"] == "claims_manual"]
+    assert len(wording) == 12
+    assert len(manual) == 14
+    assert manual[8] == {
+        "document": "claims_manual",
+        "document_title": "Claims manual",
+        "number": 9,
+        "title": "Repeat claims",
+    }
+
+
+def test_read_section(client):
+    section = client.get("/api/documents/claims_manual/sections/9").json()
+    assert section["title"] == "Repeat claims"
+    assert section["text"].startswith("## 9. Repeat claims")
+    assert "third claim within any 12 month period" in section["text"]
+    assert "Meals without receipts" not in section["text"]
+
+
+def test_last_section_runs_to_the_end(client):
+    section = client.get("/api/documents/policy_wording/sections/12").json()
+    assert section["text"].endswith("named as a traveler on your policy record.")
+
+
+def test_unknown_sections(client):
+    assert client.get("/api/documents/policy_wording/sections/13").status_code == 404
+    assert client.get("/api/documents/handbook/sections/1").status_code == 422
+
+
+def test_whole_wording_is_gone(client):
+    assert client.get("/api/policy-wording").status_code == 404
 
 
 def test_instructions(client):

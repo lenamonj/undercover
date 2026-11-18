@@ -33,7 +33,7 @@ def test_approve_and_pay(client):
         call("get_claim", claim_id="CLM-1001"),
         call("get_policy", policy_id="POL-2001"),
         call("get_claim_history", customer_id="CUS-3001"),
-        call("get_policy_wording"),
+        call("read_section", document="policy_wording", number=3),
         decision("CLM-1001", "approve", 420),
         call("pay_claim", claim_id="CLM-1001", amount=420),
         AIMessage(content="Approved for $420.00."),
@@ -44,7 +44,12 @@ def test_approve_and_pay(client):
     assert claim["status"] == "decided"
     assert claim["paid_amount"] == 420.0
     kinds = [kind for kind, _ in steps(client, "CLM-1001")]
-    assert kinds == ["tool_call", "tool_result"] * 6 + ["reply"]
+    assert kinds == (
+        ["tool_call", "tool_result"] * 3
+        + ["tool_call", "read"]
+        + ["tool_call", "tool_result"] * 2
+        + ["reply"]
+    )
     assert steps(client, "CLM-1001")[0] == (
         "tool_call",
         'get_claim {"claim_id": "CLM-1001"}',
@@ -88,8 +93,21 @@ def test_system_prompt_comes_from_backend(client):
     assert system.content == client.get("/api/instructions").json()["instructions"]
 
 
+def test_sections_read_are_recorded(client):
+    model = stub(
+        call("list_sections"),
+        call("read_section", document="claims_manual", number=9),
+        call("read_section", document="claims_manual", number=99),
+        AIMessage(content="Read them."),
+    )
+    main.run("CLM-1001", "thread-6", model)
+    reads = [detail for kind, detail in steps(client, "CLM-1001") if kind == "read"]
+    assert reads[0] == "Claims manual 9. Repeat claims"
+    assert reads[1].startswith("Refused (404)")
+
+
 def test_long_results_are_trimmed(client):
-    model = stub(call("get_policy_wording"), AIMessage(content="Read it."))
+    model = stub(call("get_claim", claim_id="CLM-1001"), AIMessage(content="Read it."))
     main.run("CLM-1001", "thread-5", model)
     result = steps(client, "CLM-1001")[1][1]
     assert len(result) == main.STEP_DETAIL_LIMIT
@@ -99,7 +117,7 @@ def test_model_name(monkeypatch):
     monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")
     monkeypatch.delenv("MODEL_NAME", raising=False)
     default = main.model()
-    assert default.model_name == "openai/gpt-6-luna"
+    assert default.model_name == "deepseek/deepseek-v4.1-flash"
     assert default.reasoning_effort == "low"
     monkeypatch.setenv("MODEL_NAME", "openrouter/free")
     assert main.model().model_name == "openrouter/free"

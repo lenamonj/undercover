@@ -67,13 +67,13 @@ Anything from later briefs: durable state, evaluations, parallel claim agents, a
 
 **Why first:** it is self-contained, and every later phase's claim agent uses it.
 
-- [ ] `uv run pytest -q` passes, with tests for splitting both documents, `list_sections`, `read_section` and a 404 for an unknown document or section
-- [ ] `GET /api/documents/sections` lists 12 sections of the policy wording and 14 of the claims manual
-- [ ] `GET /api/documents/claims_manual/sections/9` returns the section on repeat claims, and nothing from section 10
-- [ ] A stubbed claim run that reads a section records a `read` step naming the document and section
-- [ ] `/api/policy-wording` is gone, and no tool hands the agent a whole document
-- [ ] `main.model()` defaults to `deepseek/deepseek-v4.1-flash` with low reasoning effort, and `MODEL_NAME` overrides it
-- [ ] `npm run check:python` passes
+- [x] `uv run pytest -q` passes, with tests for splitting both documents, `list_sections`, `read_section` and a 404 for an unknown document or section
+- [x] `GET /api/documents/sections` lists 12 sections of the policy wording and 14 of the claims manual
+- [x] `GET /api/documents/claims_manual/sections/9` returns the section on repeat claims, and nothing from section 10
+- [x] A stubbed claim run that reads a section records a `read` step naming the document and section
+- [x] `/api/policy-wording` is gone, and no tool hands the agent a whole document
+- [x] `main.model()` defaults to `deepseek/deepseek-v4.1-flash` with low reasoning effort, and `MODEL_NAME` overrides it
+- [x] `npm run check:python` passes
 
 ## Phase 2: Runs, the cap and the to-do list in the backend
 
